@@ -75,13 +75,13 @@ function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-background">
+    <div className="min-h-screen bg-linear-to-br from-background via-secondary/30 to-background">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
       
       <div className="relative z-10 container mx-auto px-4 py-8">
         <header className="flex items-center justify-between mb-16 animate-fade-in">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-accent">
+            <div className="p-2 rounded-xl bg-linear-to-br from-primary to-accent">
               <BookOpen className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold">
@@ -200,7 +200,7 @@ function HomePage() {
                       </div>
                       <Button
                         type="submit"
-                        className="w-full h-11 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                        className="w-full h-11 bg-linear-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                         disabled={isSubmitting}
                       >
                         {isSubmitting ? 'Signing in...' : 'Sign In'}
@@ -234,7 +234,7 @@ function HomePage() {
                       </div>
                       <Button
                         type="submit"
-                        className="w-full h-11 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                        className="w-full h-11 bg-linear-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                         disabled={isSubmitting}
                       >
                         {isSubmitting ? 'Creating account...' : 'Create Account'}

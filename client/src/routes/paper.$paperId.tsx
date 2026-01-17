@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useEffect, useState, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/contexts/AuthContext';
-import { papersApi, aiApi, notesApi, Paper, Note } from '@/lib/api';
+import { papersApi, aiApi, notesApi, Paper } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -19,8 +20,6 @@ import {
   StickyNote,
   Send,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
   ZoomIn,
   ZoomOut,
   FileText,
@@ -47,7 +46,6 @@ function PaperViewPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
   const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
 
   const [summary, setSummary] = useState<string>('');
@@ -58,10 +56,10 @@ function PaperViewPage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  const [notes, setNotes] = useState<Note | null>(null);
   const [noteContent, setNoteContent] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pdfScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -100,7 +98,6 @@ function PaperViewPage() {
   const fetchNotes = async () => {
     try {
       const data = await notesApi.get(paperId);
-      setNotes(data);
       setNoteContent(data.content);
     } catch (error) {
       console.error('Failed to fetch notes:', error);
@@ -190,8 +187,8 @@ function PaperViewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 glass border-b">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <header className="shrink-0 z-50 glass border-b">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Link to="/dashboard">
             <Button variant="ghost" size="icon">
@@ -199,7 +196,7 @@ function PaperViewPage() {
             </Button>
           </Link>
           <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary to-accent">
+            <div className="p-1.5 rounded-lg bg-linear-to-br from-primary to-accent">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
@@ -213,29 +210,11 @@ function PaperViewPage() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col border-r">
-          <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
-                disabled={pageNumber <= 1}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-sm min-w-[100px] text-center">
-                Page {pageNumber} of {numPages}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
-                disabled={pageNumber >= numPages}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+        <div className="flex-1 flex flex-col border-r overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b bg-muted/30">
+            <span className="text-sm text-muted-foreground">
+              {numPages > 0 ? `${numPages} pages` : 'Loading...'}
+            </span>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -248,15 +227,18 @@ function PaperViewPage() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setScale((s) => Math.min(2, s + 0.1))}
+                onClick={() => setScale((s) => Math.min(3, s + 0.1))}
               >
                 <ZoomIn className="w-4 h-4" />
               </Button>
             </div>
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className="flex justify-center p-4 bg-muted/20">
+          <div 
+            ref={pdfScrollRef}
+            className="flex-1 overflow-auto"
+          >
+            <div className="flex flex-col items-center gap-4 p-4 bg-muted/20 min-h-full">
               <Document
                 file={paper.fileUrl}
                 onLoadSuccess={onDocumentLoadSuccess}
@@ -272,21 +254,26 @@ function PaperViewPage() {
                   </div>
                 }
               >
-                <Page
-                  pageNumber={pageNumber}
-                  scale={scale}
-                  className="shadow-lg"
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                />
+                {Array.from(new Array(numPages), (_, index) => (
+                  <div key={`page_${index + 1}`} className="shadow-lg mb-4">
+                    <Page
+                      pageNumber={index + 1}
+                      scale={scale}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      devicePixelRatio={Math.min(Math.max(window.devicePixelRatio || 1, 2) * scale, 4)}
+                      canvasBackground="white"
+                    />
+                  </div>
+                ))}
               </Document>
             </div>
-          </ScrollArea>
+          </div>
         </div>
 
-        <div className="w-[450px] flex flex-col bg-card">
-          <Tabs defaultValue="summary" className="flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
+        <div className="w-[450px] flex flex-col bg-card overflow-hidden">
+          <Tabs defaultValue="summary" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="shrink-0 grid w-full grid-cols-3 rounded-none border-b">
               <TabsTrigger value="summary" className="gap-2">
                 <Sparkles className="w-4 h-4" />
                 Summary
@@ -301,7 +288,7 @@ function PaperViewPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="summary" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
+            <TabsContent value="summary" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
               <ScrollArea className="flex-1">
                 <div className="p-4">
                   {summary ? (
@@ -360,7 +347,7 @@ function PaperViewPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="chat" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
+            <TabsContent value="chat" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
               <ScrollArea className="flex-1" ref={chatScrollRef}>
                 <div className="p-4 space-y-4">
                   {chatMessages.length === 0 ? (
@@ -426,7 +413,7 @@ function PaperViewPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="notes" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
+            <TabsContent value="notes" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
               <div className="flex-1 p-4">
                 <Textarea
                   placeholder="Write your notes here..."

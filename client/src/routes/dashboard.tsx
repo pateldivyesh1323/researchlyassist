@@ -153,11 +153,11 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background">
+    <div className="min-h-screen bg-linear-to-br from-background via-secondary/20 to-background">
       <header className="sticky top-0 z-50 glass border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-accent">
+            <div className="p-2 rounded-xl bg-linear-to-br from-primary to-accent">
               <BookOpen className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-xl font-bold">
@@ -179,7 +179,7 @@ function DashboardPage() {
 
             <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80">
+                <Button className="gap-2 bg-linear-to-r from-primary to-primary/80">
                   <Plus className="w-4 h-4" />
                   <span className="hidden sm:inline">Upload Paper</span>
                 </Button>

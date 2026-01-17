@@ -2,11 +2,6 @@ import { Router, Response } from 'express';
 import { Paper } from '../models/Paper.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const pdfParseModule = require('pdf-parse');
-const pdfParse = pdfParseModule.default || pdfParseModule;
 
 const router = Router();
 
@@ -42,14 +37,6 @@ router.post('/upload', authMiddleware, async (req: AuthRequest, res: Response): 
     }
 
     const buffer = Buffer.from(fileBase64, 'base64');
-    
-    let textContent = '';
-    try {
-      const pdfData = await pdfParse(buffer);
-      textContent = pdfData.text;
-    } catch (pdfError) {
-      console.error('PDF parsing error:', pdfError);
-    }
 
     const folder = `researchly-assist/papers/${req.user!.uid}`;
     const uniqueFileName = `${Date.now()}_${fileName.replace(/\.[^/.]+$/, '')}`;
@@ -61,7 +48,6 @@ router.post('/upload', authMiddleware, async (req: AuthRequest, res: Response): 
       fileName,
       fileUrl,
       storagePath,
-      textContent,
     });
 
     await paper.save();
