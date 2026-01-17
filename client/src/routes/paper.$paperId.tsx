@@ -28,9 +28,11 @@ import {
   Moon,
   Sun,
   GripVertical,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -65,8 +67,7 @@ export default function PaperViewPage() {
   const [chatInput, setChatInput] = useState('');
   const [streamingResponse, setStreamingResponse] = useState<string>('');
   const chatScrollRef = useRef<HTMLDivElement>(null);
-  const chatHistoryRef = useRef<ChatMessage[]>([]);
-  const pendingMessageRef = useRef<string>('');
+  const chatHistoryFetchedRef = useRef(false);
 
   const [noteContent, setNoteContent] = useState('');
   const [debouncedNoteContent] = useDebounce(noteContent, 2000);
@@ -109,7 +110,7 @@ export default function PaperViewPage() {
     },
   });
 
-  const { sendMessage: sendChatMessage, isSending: sendingMessage } = useAIChat({
+  const { sendMessage: sendChatMessage, fetchHistory: fetchChatHistory, clearHistory: clearChatHistory, isSending: sendingMessage, isConnected: chatConnected } = useAIChat({
     paperId,
     onChunk: (chunk) => {
       setStreamingResponse((prev) => prev + chunk);
@@ -117,13 +118,18 @@ export default function PaperViewPage() {
     onComplete: (response) => {
       const assistantMessage: ChatMessage = { role: 'assistant', content: response };
       setChatMessages((prev) => [...prev, assistantMessage]);
-      chatHistoryRef.current = [...chatHistoryRef.current, assistantMessage];
       setStreamingResponse('');
+    },
+    onHistoryLoaded: (messages) => {
+      setChatMessages(messages.map((m) => ({ role: m.role, content: m.content })));
+    },
+    onCleared: () => {
+      setChatMessages([]);
+      toast.success('Chat history cleared');
     },
     onError: (error) => {
       toast.error(error);
       setChatMessages((prev) => prev.slice(0, -1));
-      chatHistoryRef.current = chatHistoryRef.current.slice(0, -1);
       setStreamingResponse('');
     },
   });
@@ -145,6 +151,13 @@ export default function PaperViewPage() {
       fetchNotes();
     }
   }, [notesConnected, fetchNotes]);
+
+  useEffect(() => {
+    if (chatConnected && !chatHistoryFetchedRef.current) {
+      fetchChatHistory();
+      chatHistoryFetchedRef.current = true;
+    }
+  }, [chatConnected, fetchChatHistory]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -212,13 +225,15 @@ export default function PaperViewPage() {
     if (!chatInput.trim()) return;
 
     const userMessage: ChatMessage = { role: 'user', content: chatInput };
-    pendingMessageRef.current = chatInput;
     setChatMessages((prev) => [...prev, userMessage]);
-    chatHistoryRef.current = [...chatHistoryRef.current, userMessage];
     setChatInput('');
     setStreamingResponse('');
     
-    sendChatMessage(pendingMessageRef.current, chatHistoryRef.current.slice(0, -1));
+    sendChatMessage(chatInput);
+  };
+
+  const handleClearChat = () => {
+    clearChatHistory();
   };
 
   useEffect(() => {
@@ -378,18 +393,29 @@ export default function PaperViewPage() {
               <ScrollArea className="flex-1">
                 <div className="p-4">
                   {displaySummary ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown>{displaySummary}</ReactMarkdown>
-                      {generatingSummary && (
-                        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
-                      )}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground pb-2 border-b">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>AI Summary</span>
+                        {generatingSummary && (
+                          <Loader2 className="w-3 h-3 animate-spin ml-auto" />
+                        )}
+                      </div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>h1]:text-base [&>h2]:text-sm [&>h3]:text-sm [&>h1]:font-semibold [&>h2]:font-medium [&>h3]:font-medium [&>p]:text-[13px] [&>ul]:text-[13px] [&>ol]:text-[13px] [&>li]:text-[13px]">
+                        <ReactMarkdown>{displaySummary}</ReactMarkdown>
+                        {generatingSummary && (
+                          <span className="inline-block w-1.5 h-3.5 bg-muted-foreground/50 animate-pulse ml-0.5 rounded-sm" />
+                        )}
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <Sparkles className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                      <h3 className="font-medium mb-1">No summary yet</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Generate an AI summary of this paper
+                    <div className="text-center py-12">
+                      <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                      <h3 className="font-medium text-sm mb-1">No summary yet</h3>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Generate an AI-powered summary of this paper
                       </p>
                       <Button
                         onClick={handleGenerateSummary}
@@ -418,18 +444,31 @@ export default function PaperViewPage() {
                   <Button
                     onClick={handleGenerateSummary}
                     disabled={generatingSummary}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="w-full gap-2"
+                    className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Regenerate
+                    <Sparkles className="w-3 h-3" />
+                    Regenerate summary
                   </Button>
                 </div>
               )}
             </TabsContent>
 
             <TabsContent value="chat" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
+              {chatMessages.length > 0 && (
+                <div className="shrink-0 flex items-center justify-end px-3 py-1.5 border-b">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1.5"
+                    onClick={handleClearChat}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear chat
+                  </Button>
+                </div>
+              )}
               <ScrollArea className="flex-1" ref={chatScrollRef}>
                 <div className="p-4 space-y-3">
                   {chatMessages.length === 0 && !streamingResponse ? (
@@ -445,17 +484,24 @@ export default function PaperViewPage() {
                       {chatMessages.map((msg, i) => (
                         <div
                           key={i}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
+                          {msg.role === 'assistant' && (
+                            <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+                              <AvatarFallback className="bg-linear-to-br from-violet-500 to-purple-600 text-white">
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
                           <div
-                            className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                            className={`max-w-[85%] rounded-xl px-3.5 py-2.5 ${
                               msg.role === 'user'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
+                                ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                : 'bg-linear-to-br from-muted/80 to-muted border border-border/50 rounded-tl-sm shadow-sm'
                             }`}
                           >
                             {msg.role === 'assistant' ? (
-                              <div className="prose prose-sm dark:prose-invert max-w-none">
+                              <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                                 <ReactMarkdown>{msg.content}</ReactMarkdown>
                               </div>
                             ) : (
@@ -465,19 +511,33 @@ export default function PaperViewPage() {
                         </div>
                       ))}
                       {streamingResponse && (
-                        <div className="flex justify-start">
-                          <div className="max-w-[85%] rounded-lg px-3 py-2 bg-muted">
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <div className="flex gap-2 justify-start">
+                          <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+                            <AvatarFallback className="bg-linear-to-br from-violet-500 to-purple-600 text-white">
+                              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="max-w-[85%] rounded-xl rounded-tl-sm px-3.5 py-2.5 bg-linear-to-br from-muted/80 to-muted border border-border/50 shadow-sm">
+                            <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                               <ReactMarkdown>{streamingResponse}</ReactMarkdown>
-                              <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
+                              <span className="inline-block w-1.5 h-4 bg-violet-500 animate-pulse ml-0.5 rounded-sm" />
                             </div>
                           </div>
                         </div>
                       )}
                       {sendingMessage && !streamingResponse && (
-                        <div className="flex justify-start">
-                          <div className="bg-muted rounded-lg px-3 py-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                        <div className="flex gap-2 justify-start">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarFallback className="bg-linear-to-br from-violet-500 to-purple-600 text-white">
+                              <Sparkles className="w-3.5 h-3.5" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="bg-linear-to-br from-muted/80 to-muted border border-border/50 rounded-xl rounded-tl-sm px-3.5 py-2.5 shadow-sm">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                              <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                              <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" />
+                            </div>
                           </div>
                         </div>
                       )}

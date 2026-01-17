@@ -8,6 +8,8 @@ import type {
   AISummaryCompleteResponse,
   AIChatChunkResponse,
   AIChatCompleteResponse,
+  AIChatHistoryResponse,
+  AIChatClearedResponse,
   AIErrorResponse,
 } from './types';
 
@@ -194,25 +196,38 @@ export const useAISummary = ({ paperId, onChunk, onComplete, onError }: UseAISum
   return { generateSummary, isGenerating, isConnected };
 };
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
 interface UseAIChatOptions {
   paperId: string;
   onChunk?: (chunk: string) => void;
   onComplete?: (response: string) => void;
+  onHistoryLoaded?: (messages: ChatMessage[]) => void;
+  onCleared?: () => void;
   onError?: (error: string) => void;
 }
 
-export const useAIChat = ({ paperId, onChunk, onComplete, onError }: UseAIChatOptions) => {
+export const useAIChat = ({ paperId, onChunk, onComplete, onHistoryLoaded, onCleared, onError }: UseAIChatOptions) => {
   const { socket, isConnected } = useSocket();
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const onChunkRef = useRef(onChunk);
   const onCompleteRef = useRef(onComplete);
+  const onHistoryLoadedRef = useRef(onHistoryLoaded);
+  const onClearedRef = useRef(onCleared);
   const onErrorRef = useRef(onError);
 
   useEffect(() => {
     onChunkRef.current = onChunk;
     onCompleteRef.current = onComplete;
+    onHistoryLoadedRef.current = onHistoryLoaded;
+    onClearedRef.current = onCleared;
     onErrorRef.current = onError;
-  }, [onChunk, onComplete, onError]);
+  }, [onChunk, onComplete, onHistoryLoaded, onCleared, onError]);
 
   useEffect(() => {
     if (!socket || !isConnected) return;
@@ -230,33 +245,64 @@ export const useAIChat = ({ paperId, onChunk, onComplete, onError }: UseAIChatOp
       }
     };
 
+    const handleHistoryResponse = (response: AIChatHistoryResponse) => {
+      if (response.paperId === paperId) {
+        setIsLoadingHistory(false);
+        onHistoryLoadedRef.current?.(response.messages);
+      }
+    };
+
+    const handleCleared = (response: AIChatClearedResponse) => {
+      if (response.paperId === paperId && response.success) {
+        onClearedRef.current?.();
+      }
+    };
+
     const handleError = (response: AIErrorResponse) => {
       if (response.paperId === paperId) {
         setIsSending(false);
+        setIsLoadingHistory(false);
         onErrorRef.current?.(response.error);
       }
     };
 
     socket.on('ai:chat:chunk', handleChunk);
     socket.on('ai:chat:complete', handleComplete);
+    socket.on('ai:chat:history:response', handleHistoryResponse);
+    socket.on('ai:chat:cleared', handleCleared);
     socket.on('ai:chat:error', handleError);
 
     return () => {
       socket.off('ai:chat:chunk', handleChunk);
       socket.off('ai:chat:complete', handleComplete);
+      socket.off('ai:chat:history:response', handleHistoryResponse);
+      socket.off('ai:chat:cleared', handleCleared);
       socket.off('ai:chat:error', handleError);
     };
   }, [socket, isConnected, paperId]);
 
   const sendMessage = useCallback(
-    (message: string, chatHistory: { role: string; content: string }[]) => {
+    (message: string) => {
       if (socket && isConnected) {
         setIsSending(true);
-        socket.emit('ai:chat', { paperId, message, chatHistory });
+        socket.emit('ai:chat', { paperId, message });
       }
     },
     [socket, isConnected, paperId]
   );
 
-  return { sendMessage, isSending, isConnected };
+  const fetchHistory = useCallback(() => {
+    if (socket && isConnected) {
+      setIsLoadingHistory(true);
+      socket.emit('ai:chat:history', { paperId });
+    }
+  }, [socket, isConnected, paperId]);
+
+  const clearHistory = useCallback(() => {
+    if (socket && isConnected) {
+      socket.emit('ai:chat:clear', { paperId });
+    }
+  }, [socket, isConnected, paperId]);
+
+  return { sendMessage, fetchHistory, clearHistory, isSending, isLoadingHistory, isConnected };
 };

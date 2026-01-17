@@ -44,7 +44,24 @@ export interface AISummaryCompleteResponse {
 export interface AIChatRequestPayload {
   paperId: string;
   message: string;
-  chatHistory: { role: string; content: string }[];
+}
+
+export interface AIChatHistoryRequestPayload {
+  paperId: string;
+}
+
+export interface AIChatClearRequestPayload {
+  paperId: string;
+}
+
+export interface AIChatHistoryResponse {
+  paperId: string;
+  messages: { role: 'user' | 'assistant'; content: string; timestamp: string }[];
+}
+
+export interface AIChatClearedResponse {
+  paperId: string;
+  success: boolean;
 }
 
 export interface AIChatChunkResponse {
@@ -68,6 +85,8 @@ export interface ClientToServerEvents {
   'notes:get': (payload: { paperId: string }) => void;
   'ai:summary': (payload: AISummaryRequestPayload) => void;
   'ai:chat': (payload: AIChatRequestPayload) => void;
+  'ai:chat:history': (payload: AIChatHistoryRequestPayload) => void;
+  'ai:chat:clear': (payload: AIChatClearRequestPayload) => void;
 }
 
 export interface ServerToClientEvents {
@@ -80,4 +99,6 @@ export interface ServerToClientEvents {
   'ai:chat:chunk': (payload: AIChatChunkResponse) => void;
   'ai:chat:complete': (payload: AIChatCompleteResponse) => void;
   'ai:chat:error': (payload: AIErrorResponse) => void;
+  'ai:chat:history:response': (payload: AIChatHistoryResponse) => void;
+  'ai:chat:cleared': (payload: AIChatClearedResponse) => void;
 }
