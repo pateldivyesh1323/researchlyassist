@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useDebounce } from 'use-debounce';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { papersApi, Paper } from '@/lib/api';
+import { papersApi, Paper, PaginationInfo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
   BookOpen,
@@ -36,8 +40,14 @@ import {
   Loader2,
   Moon,
   Sun,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+type SortOption = 'newest' | 'oldest' | 'title-asc' | 'title-desc';
+const PAPERS_PER_PAGE = 15;
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -48,13 +58,36 @@ function DashboardPage() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch] = useDebounce(searchQuery, 300);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [currentPage, setCurrentPage] = useState(1);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const prevDebouncedSearch = useRef(debouncedSearch);
+
+  const fetchPapers = useCallback(async (search: string, sort: SortOption, page: number) => {
+    setIsLoading(true);
+    try {
+      const data = await papersApi.getAll({
+        search: search || undefined,
+        sort,
+        page,
+        limit: PAPERS_PER_PAGE,
+      });
+      setPapers(data.papers);
+      setPagination(data.pagination);
+    } catch (error) {
+      toast.error('Failed to fetch papers');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -63,21 +96,17 @@ function DashboardPage() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
-      fetchPapers();
+    if (prevDebouncedSearch.current !== debouncedSearch) {
+      setCurrentPage(1);
+      prevDebouncedSearch.current = debouncedSearch;
     }
-  }, [user]);
+  }, [debouncedSearch]);
 
-  const fetchPapers = async () => {
-    try {
-      const data = await papersApi.getAll();
-      setPapers(data);
-    } catch (error) {
-      toast.error('Failed to fetch papers');
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (user) {
+      fetchPapers(debouncedSearch, sortBy, currentPage);
     }
-  };
+  }, [user, debouncedSearch, sortBy, currentPage, fetchPapers]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -101,21 +130,23 @@ function DashboardPage() {
 
     setUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        await papersApi.upload({
-          title: uploadTitle,
-          fileName: selectedFile.name,
-          fileBase64: base64,
-        });
-        toast.success('Paper uploaded successfully!');
-        setUploadOpen(false);
-        setUploadTitle('');
-        setSelectedFile(null);
-        fetchPapers();
-      };
-      reader.readAsDataURL(selectedFile);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
+      });
+
+      await papersApi.upload({
+        title: uploadTitle,
+        fileName: selectedFile.name,
+        fileBase64: base64,
+      });
+      toast.success('Paper uploaded successfully!');
+      setUploadOpen(false);
+      setUploadTitle('');
+      setSelectedFile(null);
+      fetchPapers(debouncedSearch, sortBy, currentPage);
     } catch (error) {
       toast.error('Failed to upload paper');
     } finally {
@@ -131,7 +162,7 @@ function DashboardPage() {
     try {
       await papersApi.delete(id);
       toast.success('Paper deleted');
-      setPapers(papers.filter((p) => p._id !== id));
+      fetchPapers(debouncedSearch, sortBy, currentPage);
     } catch (error) {
       toast.error('Failed to delete paper');
     }
@@ -142,9 +173,25 @@ function DashboardPage() {
     navigate({ to: '/' });
   };
 
-  const filteredPapers = papers.filter((paper) =>
-    paper.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSortChange = (sort: SortOption) => {
+    setSortBy(sort);
+    setCurrentPage(1);
+  };
+
+  const sortLabels: Record<SortOption, string> = {
+    'newest': 'Newest first',
+    'oldest': 'Oldest first',
+    'title-asc': 'Title A-Z',
+    'title-desc': 'Title Z-A',
+  };
+
+  const totalPages = pagination?.totalPages || 1;
+  const total = pagination?.total || 0;
 
   if (loading || !user) {
     return (
@@ -173,6 +220,25 @@ function DashboardPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 hidden sm:flex">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span className="hidden lg:inline">{sortLabels[sortBy]}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => handleSortChange(v as SortOption)}>
+                  <DropdownMenuRadioItem value="newest">Newest first</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="oldest">Oldest first</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="title-asc">Title A-Z</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="title-desc">Title Z-A</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme}>
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -227,10 +293,11 @@ function DashboardPage() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setUploadOpen(false)}>
+                  <Button variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>
                     Cancel
                   </Button>
-                  <Button onClick={handleUpload} disabled={uploading}>
+                  <Button onClick={handleUpload} disabled={uploading || !selectedFile || !uploadTitle}>
+                    {uploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     {uploading ? 'Uploading...' : 'Upload'}
                   </Button>
                 </DialogFooter>
@@ -273,7 +340,7 @@ function DashboardPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <div className="mb-6 md:hidden">
+        <div className="mb-6 md:hidden space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -283,24 +350,44 @@ function DashboardPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <div className="flex sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <ArrowUpDown className="w-4 h-4" />
+                  {sortLabels[sortBy]}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => handleSortChange(v as SortOption)}>
+                  <DropdownMenuRadioItem value="newest">Newest first</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="oldest">Oldest first</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="title-asc">Title A-Z</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="title-desc">Title Z-A</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredPapers.length === 0 ? (
+        ) : papers.length === 0 ? (
           <div className="text-center py-16">
             <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-1">
-              {searchQuery ? 'No papers found' : 'No papers yet'}
+              {debouncedSearch ? 'No papers found' : 'No papers yet'}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {searchQuery
+              {debouncedSearch
                 ? 'Try a different search term'
                 : 'Upload your first paper to get started'}
             </p>
-            {!searchQuery && (
+            {!debouncedSearch && (
               <Button onClick={() => setUploadOpen(true)} size="sm" className="gap-2">
                 <Plus className="w-4 h-4" />
                 Upload Paper
@@ -308,8 +395,9 @@ function DashboardPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredPapers.map((paper) => (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {papers.map((paper) => (
               <Link
                 key={paper._id}
                 to="/paper/$paperId"
@@ -351,6 +439,58 @@ function DashboardPage() {
                 </Card>
               </Link>
             ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          className="w-8 h-8 p-0"
+                          onClick={() => handlePageChange(page)}
+                        >
+                          {page}
+                        </Button>
+                      );
+                    } else if (page === currentPage - 2 || page === currentPage + 2) {
+                      return <span key={page} className="px-1 text-muted-foreground">...</span>;
+                    }
+                    return null;
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+
+            <p className="text-center text-sm text-muted-foreground">
+              Showing {(currentPage - 1) * PAPERS_PER_PAGE + 1}-{Math.min(currentPage * PAPERS_PER_PAGE, total)} of {total} papers
+            </p>
           </div>
         )}
       </main>

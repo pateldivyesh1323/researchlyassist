@@ -1,18 +1,30 @@
 import axios from 'axios';
-import { auth } from './firebase';
+
+const TOKEN_KEY = 'auth_token';
 
 const api = axios.create({
   baseURL: '/api',
 });
 
-api.interceptors.request.use(async (config) => {
-  const user = auth.currentUser;
-  if (user) {
-    const token = await user.getIdToken();
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem('auth_user');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface Paper {
   _id: string;
@@ -34,8 +46,28 @@ export interface Note {
   updatedAt: string;
 }
 
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PapersResponse {
+  papers: Paper[];
+  pagination: PaginationInfo;
+}
+
+export interface PapersQueryParams {
+  search?: string;
+  sort?: 'newest' | 'oldest' | 'title-asc' | 'title-desc';
+  page?: number;
+  limit?: number;
+}
+
 export const papersApi = {
-  getAll: () => api.get<Paper[]>('/papers').then((res) => res.data),
+  getAll: (params?: PapersQueryParams) => 
+    api.get<PapersResponse>('/papers', { params }).then((res) => res.data),
   getOne: (id: string) => api.get<Paper>(`/papers/${id}`).then((res) => res.data),
   upload: (data: { title: string; fileName: string; fileBase64: string }) =>
     api.post<Paper>('/papers/upload', data).then((res) => res.data),

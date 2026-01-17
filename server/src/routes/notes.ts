@@ -8,12 +8,12 @@ router.get('/:paperId', authMiddleware, async (req: AuthRequest, res: Response):
   try {
     let note = await Note.findOne({ 
       paperId: req.params.paperId, 
-      userId: req.user!.uid 
+      userId: req.user!.userId 
     });
     
     if (!note) {
       note = new Note({
-        userId: req.user!.uid,
+        userId: req.user!.userId,
         paperId: req.params.paperId,
         content: '',
       });
@@ -31,7 +31,7 @@ router.put('/:paperId', authMiddleware, async (req: AuthRequest, res: Response):
     const { content } = req.body;
     
     const note = await Note.findOneAndUpdate(
-      { paperId: req.params.paperId, userId: req.user!.uid },
+      { paperId: req.params.paperId, userId: req.user!.userId },
       { content, updatedAt: new Date() },
       { new: true, upsert: true }
     );

@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { Paper } from '../models/Paper.js';
+import { Note } from '../models/Note.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
 
@@ -7,8 +8,48 @@ const router = Router();
 
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const papers = await Paper.find({ userId: req.user!.uid }).sort({ uploadedAt: -1 });
-    res.json(papers);
+    const { search, sort = 'newest', page = '1', limit = '15' } = req.query;
+    
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit as string, 10) || 15));
+    const skip = (pageNum - 1) * limitNum;
+
+    const query: Record<string, unknown> = { userId: req.user!.userId };
+    
+    if (search && typeof search === 'string' && search.trim()) {
+      query.title = { $regex: search.trim(), $options: 'i' };
+    }
+
+    let sortOption: Record<string, 1 | -1> = { uploadedAt: -1 };
+    switch (sort) {
+      case 'oldest':
+        sortOption = { uploadedAt: 1 };
+        break;
+      case 'title-asc':
+        sortOption = { title: 1 };
+        break;
+      case 'title-desc':
+        sortOption = { title: -1 };
+        break;
+      case 'newest':
+      default:
+        sortOption = { uploadedAt: -1 };
+    }
+
+    const [papers, total] = await Promise.all([
+      Paper.find(query).sort(sortOption).skip(skip).limit(limitNum),
+      Paper.countDocuments(query),
+    ]);
+
+    res.json({
+      papers,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch papers' });
   }
@@ -16,7 +57,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
 
 router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const paper = await Paper.findOne({ _id: req.params.id, userId: req.user!.uid });
+    const paper = await Paper.findOne({ _id: req.params.id, userId: req.user!.userId });
     if (!paper) {
       res.status(404).json({ error: 'Paper not found' });
       return;
@@ -38,12 +79,12 @@ router.post('/upload', authMiddleware, async (req: AuthRequest, res: Response): 
 
     const buffer = Buffer.from(fileBase64, 'base64');
 
-    const folder = `researchly-assist/papers/${req.user!.uid}`;
+    const folder = `researchly-assist/papers/${req.user!.userId}`;
     const uniqueFileName = `${Date.now()}_${fileName.replace(/\.[^/.]+$/, '')}`;
     const { url: fileUrl, publicId: storagePath } = await uploadToCloudinary(buffer, folder, uniqueFileName);
 
     const paper = new Paper({
-      userId: req.user!.uid,
+      userId: req.user!.userId,
       title,
       fileName,
       fileUrl,
@@ -60,7 +101,7 @@ router.post('/upload', authMiddleware, async (req: AuthRequest, res: Response): 
 
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const paper = await Paper.findOne({ _id: req.params.id, userId: req.user!.uid });
+    const paper = await Paper.findOne({ _id: req.params.id, userId: req.user!.userId });
     
     if (!paper) {
       res.status(404).json({ error: 'Paper not found' });
@@ -73,6 +114,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response): P
       console.error('Storage delete error:', storageError);
     }
 
+    await Note.deleteMany({ paperId: req.params.id, userId: req.user!.userId });
     await Paper.deleteOne({ _id: req.params.id });
     res.json({ message: 'Paper deleted successfully' });
   } catch (error) {

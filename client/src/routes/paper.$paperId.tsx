@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -26,6 +26,7 @@ import {
   Save,
   Moon,
   Sun,
+  GripVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -76,6 +77,12 @@ function PaperViewPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pdfScrollRef = useRef<HTMLDivElement>(null);
 
+  const [panelWidth, setPanelWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const MIN_PANEL_WIDTH = 280;
+  const MAX_PANEL_WIDTH = 700;
+
   const updateSearchParams = (params: Partial<PaperSearchParams>) => {
     navigate({
       to: '/paper/$paperId',
@@ -103,6 +110,41 @@ function PaperViewPage() {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [chatMessages]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !containerRef.current) return;
+    
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newWidth = containerRect.right - e.clientX;
+    
+    if (newWidth >= MIN_PANEL_WIDTH && newWidth <= MAX_PANEL_WIDTH) {
+      setPanelWidth(newWidth);
+    }
+  }, [isResizing]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  const handleResizeStart = () => {
+    setIsResizing(true);
+  };
 
   const fetchPaper = async () => {
     try {
@@ -233,8 +275,8 @@ function PaperViewPage() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col border-r overflow-hidden">
+      <div ref={containerRef} className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden">
           <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b">
             <span className="text-xs text-muted-foreground">
               {numPages > 0 ? `${numPages} pages` : 'Loading...'}
@@ -297,7 +339,19 @@ function PaperViewPage() {
           </div>
         </div>
 
-        <div className="w-[400px] flex flex-col bg-background overflow-hidden">
+        <div
+          className="shrink-0 w-1 bg-border hover:bg-primary/50 cursor-col-resize flex items-center justify-center group transition-colors"
+          onMouseDown={handleResizeStart}
+        >
+          <div className="w-4 h-8 flex items-center justify-center rounded bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
+            <GripVertical className="w-3 h-3 text-muted-foreground" />
+          </div>
+        </div>
+
+        <div 
+          className="flex flex-col bg-background overflow-hidden"
+          style={{ width: panelWidth }}
+        >
           <Tabs 
             value={tab} 
             onValueChange={(value) => updateSearchParams({ tab: value as PanelTab })}

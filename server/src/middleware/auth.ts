@@ -1,10 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../config/firebase.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export interface AuthRequest extends Request {
   user?: {
-    uid: string;
-    email?: string;
+    userId: string;
+    firebaseUid: string;
+    email: string;
   };
 }
 
@@ -22,15 +25,29 @@ export const authMiddleware = async (
     }
 
     const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await verifyToken(token);
+    
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      firebaseUid: string;
+      email: string;
+    };
     
     req.user = {
-      uid: decodedToken.uid,
-      email: decodedToken.email,
+      userId: decoded.userId,
+      firebaseUid: decoded.firebaseUid,
+      email: decoded.email,
     };
     
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Token expired' });
+      return;
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
+    res.status(401).json({ error: 'Authentication failed' });
   }
 };

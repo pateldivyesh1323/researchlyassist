@@ -18,7 +18,7 @@ const fetchPdfAsBase64 = async (url: string): Promise<string> => {
 
 router.post('/summary/:paperId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const paper = await Paper.findOne({ _id: req.params.paperId, userId: req.user!.uid });
+    const paper = await Paper.findOne({ _id: req.params.paperId, userId: req.user!.userId });
     
     if (!paper) {
       res.status(404).json({ error: 'Paper not found' });
@@ -72,7 +72,7 @@ router.post('/chat/:paperId', authMiddleware, async (req: AuthRequest, res: Resp
   try {
     const { message, chatHistory } = req.body;
     
-    const paper = await Paper.findOne({ _id: req.params.paperId, userId: req.user!.uid });
+    const paper = await Paper.findOne({ _id: req.params.paperId, userId: req.user!.userId });
     
     if (!paper) {
       res.status(404).json({ error: 'Paper not found' });
