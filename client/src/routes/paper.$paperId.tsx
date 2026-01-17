@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -8,10 +8,8 @@ import ReactMarkdown from 'react-markdown';
 import MDEditor from '@uiw/react-md-editor';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { PrivateRoute } from '@/components/wrappers';
 import { papersApi, aiApi, notesApi, Paper } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -31,35 +29,28 @@ import {
   GripVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 type PanelTab = 'summary' | 'chat' | 'notes';
-
-interface PaperSearchParams {
-  tab?: PanelTab;
-}
-
-export const Route = createFileRoute('/paper/$paperId')({
-  component: PaperViewPage,
-  validateSearch: (search: Record<string, unknown>): PaperSearchParams => {
-    return {
-      tab: (search.tab as PanelTab) || 'summary',
-    };
-  },
-});
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-function PaperViewPage() {
-  const { paperId } = Route.useParams();
-  const { tab } = Route.useSearch();
+export default function PaperViewPage() {
+  const { paperId } = useParams<{ paperId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = (searchParams.get('tab') as PanelTab) || 'summary';
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+
+  if (!paperId) {
+    return null;
+  }
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,13 +77,10 @@ function PaperViewPage() {
   const MIN_PANEL_WIDTH = 280;
   const MAX_PANEL_WIDTH = 700;
 
-  const updateSearchParams = (params: Partial<PaperSearchParams>) => {
-    navigate({
-      to: '/paper/$paperId',
-      params: { paperId },
-      search: (prev) => ({ ...prev, ...params }),
-      replace: true,
-    });
+  const updateSearchParams = (params: { tab?: PanelTab }) => {
+    if (params.tab) {
+      setSearchParams({ tab: params.tab }, { replace: true });
+    }
   };
 
   useEffect(() => {
@@ -152,7 +140,7 @@ function PaperViewPage() {
       }
     } catch (error) {
       toast.error('Failed to load paper');
-      navigate({ to: '/dashboard' });
+      navigate('/dashboard');
     } finally {
       setLoading(false);
     }
@@ -234,25 +222,22 @@ function PaperViewPage() {
 
   if (loading) {
     return (
-      <PrivateRoute>
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
-      </PrivateRoute>
     );
   }
 
   if (!paper) {
-    return <PrivateRoute>{null}</PrivateRoute>;
+    return null;
   }
 
   return (
-    <PrivateRoute>
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <header className="shrink-0 z-50 bg-background border-b">
         <div className="container mx-auto px-4 py-2 flex items-center gap-3">
           <Link to="/dashboard">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
@@ -528,6 +513,5 @@ function PaperViewPage() {
         </div>
       </div>
     </div>
-    </PrivateRoute>
   );
 }

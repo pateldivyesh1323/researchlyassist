@@ -1,8 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { PublicRoute } from '@/components/wrappers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,11 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookOpen, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 
-export const Route = createFileRoute('/')({
-  component: HomePage,
-});
-
-function HomePage() {
+export default function HomePage() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
@@ -61,7 +55,6 @@ function HomePage() {
   };
 
   return (
-    <PublicRoute>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <header className="flex items-center justify-between mb-16">
@@ -216,6 +209,5 @@ function HomePage() {
         </main>
       </div>
     </div>
-    </PublicRoute>
   );
 }

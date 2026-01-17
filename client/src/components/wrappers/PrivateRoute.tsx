@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Navigate } from '@tanstack/react-router';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -19,7 +19,7 @@ export function PrivateRoute({ children }: PrivateRouteProps) {
   }
 
   if (!user) {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

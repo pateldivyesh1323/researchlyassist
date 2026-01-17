@@ -1,9 +1,8 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { PrivateRoute } from '@/components/wrappers';
 import { papersApi, Paper, PaginationInfo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,11 +49,7 @@ import { toast } from 'sonner';
 type SortOption = 'newest' | 'oldest' | 'title-asc' | 'title-desc';
 const PAPERS_PER_PAGE = 15;
 
-export const Route = createFileRoute('/dashboard')({
-  component: DashboardPage,
-});
-
-function DashboardPage() {
+export default function DashboardPage() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -165,7 +160,7 @@ function DashboardPage() {
 
   const handleLogout = async () => {
     await logout();
-    navigate({ to: '/' });
+    navigate('/');
   };
 
   const handlePageChange = (page: number) => {
@@ -189,7 +184,6 @@ function DashboardPage() {
   const total = pagination?.total || 0;
 
   return (
-    <PrivateRoute>
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 bg-background border-b">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -388,8 +382,7 @@ function DashboardPage() {
               {papers.map((paper) => (
               <Link
                 key={paper._id}
-                to="/paper/$paperId"
-                params={{ paperId: paper._id }}
+                to={`/paper/${paper._id}`}
                 className="block"
               >
                 <Card className="h-full hover:bg-muted/50 transition-colors group">
@@ -483,6 +476,5 @@ function DashboardPage() {
         )}
       </main>
     </div>
-    </PrivateRoute>
   );
 }
