@@ -5,6 +5,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { papersApi, aiApi, notesApi, Paper } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
-  BookOpen,
   ArrowLeft,
   Sparkles,
   MessageSquare,
@@ -24,6 +24,8 @@ import {
   ZoomOut,
   FileText,
   Save,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,6 +43,7 @@ interface ChatMessage {
 function PaperViewPage() {
   const { paperId } = Route.useParams();
   const { user, loading: authLoading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [paper, setPaper] = useState<Paper | null>(null);
@@ -175,9 +178,7 @@ function PaperViewPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse-soft">
-          <BookOpen className="w-16 h-16 text-primary" />
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -188,48 +189,48 @@ function PaperViewPage() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <header className="shrink-0 z-50 glass border-b">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
+      <header className="shrink-0 z-50 bg-background border-b">
+        <div className="container mx-auto px-4 py-2 flex items-center gap-3">
           <Link to="/dashboard">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-lg bg-linear-to-br from-primary to-accent">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold truncate max-w-md">{paper.title}</h1>
-              <p className="text-xs text-muted-foreground">
-                {new Date(paper.uploadedAt).toLocaleDateString()}
-              </p>
-            </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm font-medium truncate max-w-md">{paper.title}</h1>
+            <p className="text-xs text-muted-foreground">
+              {new Date(paper.uploadedAt).toLocaleDateString()}
+            </p>
           </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme}>
+            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          </Button>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col border-r overflow-hidden">
-          <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b bg-muted/30">
-            <span className="text-sm text-muted-foreground">
+          <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b">
+            <span className="text-xs text-muted-foreground">
               {numPages > 0 ? `${numPages} pages` : 'Loading...'}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
+                className="h-7 w-7"
                 onClick={() => setScale((s) => Math.max(0.5, s - 0.1))}
               >
-                <ZoomOut className="w-4 h-4" />
+                <ZoomOut className="w-3.5 h-3.5" />
               </Button>
-              <span className="text-sm min-w-[60px] text-center">{Math.round(scale * 100)}%</span>
+              <span className="text-xs min-w-[50px] text-center">{Math.round(scale * 100)}%</span>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
+                className="h-7 w-7"
                 onClick={() => setScale((s) => Math.min(3, s + 0.1))}
               >
-                <ZoomIn className="w-4 h-4" />
+                <ZoomIn className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
@@ -238,30 +239,30 @@ function PaperViewPage() {
             ref={pdfScrollRef}
             className="flex-1 overflow-auto"
           >
-            <div className="flex flex-col items-center gap-4 p-4 bg-muted/20 min-h-full">
+            <div className="flex flex-col items-center gap-4 p-4 bg-muted/30 min-h-full">
               <Document
                 file={paper.fileUrl}
                 onLoadSuccess={onDocumentLoadSuccess}
                 loading={
                   <div className="flex items-center justify-center p-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
                 }
                 error={
                   <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-                    <FileText className="w-12 h-12 mb-2" />
-                    <p>Failed to load PDF</p>
+                    <FileText className="w-10 h-10 mb-2" />
+                    <p className="text-sm">Failed to load PDF</p>
                   </div>
                 }
               >
                 {Array.from(new Array(numPages), (_, index) => (
-                  <div key={`page_${index + 1}`} className="shadow-lg mb-4">
+                  <div key={`page_${index + 1}`} className="shadow-sm mb-4">
                     <Page
                       pageNumber={index + 1}
                       scale={scale}
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
-                      devicePixelRatio={Math.min(Math.max(window.devicePixelRatio || 1, 2) * scale, 4)}
+                      devicePixelRatio={Math.max(window.devicePixelRatio || 1, 2)}
                       canvasBackground="white"
                     />
                   </div>
@@ -271,19 +272,19 @@ function PaperViewPage() {
           </div>
         </div>
 
-        <div className="w-[450px] flex flex-col bg-card overflow-hidden">
+        <div className="w-[400px] flex flex-col bg-background overflow-hidden">
           <Tabs defaultValue="summary" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="shrink-0 grid w-full grid-cols-3 rounded-none border-b">
-              <TabsTrigger value="summary" className="gap-2">
-                <Sparkles className="w-4 h-4" />
+            <TabsList className="shrink-0 grid w-full grid-cols-3 rounded-none border-b h-10">
+              <TabsTrigger value="summary" className="gap-1.5 text-xs">
+                <Sparkles className="w-3.5 h-3.5" />
                 Summary
               </TabsTrigger>
-              <TabsTrigger value="chat" className="gap-2">
-                <MessageSquare className="w-4 h-4" />
+              <TabsTrigger value="chat" className="gap-1.5 text-xs">
+                <MessageSquare className="w-3.5 h-3.5" />
                 Chat
               </TabsTrigger>
-              <TabsTrigger value="notes" className="gap-2">
-                <StickyNote className="w-4 h-4" />
+              <TabsTrigger value="notes" className="gap-1.5 text-xs">
+                <StickyNote className="w-3.5 h-3.5" />
                 Notes
               </TabsTrigger>
             </TabsList>
@@ -297,24 +298,25 @@ function PaperViewPage() {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="font-semibold mb-2">No summary yet</h3>
+                      <Sparkles className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                      <h3 className="font-medium mb-1">No summary yet</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Generate an AI-powered summary of this paper
+                        Generate an AI summary of this paper
                       </p>
                       <Button
                         onClick={handleGenerateSummary}
                         disabled={generatingSummary}
+                        size="sm"
                         className="gap-2"
                       >
                         {generatingSummary ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             Generating...
                           </>
                         ) : (
                           <>
-                            <Sparkles className="w-4 h-4" />
+                            <Sparkles className="w-3.5 h-3.5" />
                             Generate Summary
                           </>
                         )}
@@ -324,22 +326,23 @@ function PaperViewPage() {
                 </div>
               </ScrollArea>
               {summary && (
-                <div className="p-4 border-t">
+                <div className="p-3 border-t">
                   <Button
                     onClick={handleGenerateSummary}
                     disabled={generatingSummary}
                     variant="outline"
+                    size="sm"
                     className="w-full gap-2"
                   >
                     {generatingSummary ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         Regenerating...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
-                        Regenerate Summary
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Regenerate
                       </>
                     )}
                   </Button>
@@ -349,13 +352,13 @@ function PaperViewPage() {
 
             <TabsContent value="chat" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
               <ScrollArea className="flex-1" ref={chatScrollRef}>
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-3">
                   {chatMessages.length === 0 ? (
                     <div className="text-center py-8">
-                      <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="font-semibold mb-2">Chat with your paper</h3>
+                      <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                      <h3 className="font-medium mb-1">Chat with your paper</h3>
                       <p className="text-sm text-muted-foreground">
-                        Ask questions and get answers based on the paper content
+                        Ask questions about the content
                       </p>
                     </div>
                   ) : (
@@ -365,7 +368,7 @@ function PaperViewPage() {
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[85%] rounded-2xl px-4 py-2 ${
+                          className={`max-w-[85%] rounded-lg px-3 py-2 ${
                             msg.role === 'user'
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-muted'
@@ -384,7 +387,7 @@ function PaperViewPage() {
                   )}
                   {sendingMessage && (
                     <div className="flex justify-start">
-                      <div className="bg-muted rounded-2xl px-4 py-2">
+                      <div className="bg-muted rounded-lg px-3 py-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
                       </div>
                     </div>
@@ -392,7 +395,7 @@ function PaperViewPage() {
                 </div>
               </ScrollArea>
               <Separator />
-              <div className="p-4">
+              <div className="p-3">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -405,8 +408,9 @@ function PaperViewPage() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     disabled={sendingMessage}
+                    className="h-9"
                   />
-                  <Button type="submit" size="icon" disabled={sendingMessage || !chatInput.trim()}>
+                  <Button type="submit" size="icon" className="h-9 w-9" disabled={sendingMessage || !chatInput.trim()}>
                     <Send className="w-4 h-4" />
                   </Button>
                 </form>
@@ -422,7 +426,7 @@ function PaperViewPage() {
                   onChange={(e) => handleNoteChange(e.target.value)}
                 />
               </div>
-              <div className="p-4 border-t flex items-center justify-between">
+              <div className="p-3 border-t flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
                   {savingNotes ? (
                     <span className="flex items-center gap-1">
@@ -433,9 +437,9 @@ function PaperViewPage() {
                     'Auto-saved'
                   )}
                 </span>
-                <Button variant="outline" size="sm" onClick={handleManualSave} className="gap-2">
-                  <Save className="w-4 h-4" />
-                  Save Now
+                <Button variant="outline" size="sm" onClick={handleManualSave} className="gap-1.5 h-7 text-xs">
+                  <Save className="w-3.5 h-3.5" />
+                  Save
                 </Button>
               </div>
             </TabsContent>

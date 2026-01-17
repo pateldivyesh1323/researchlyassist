@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { papersApi, Paper } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,12 +28,14 @@ import {
   BookOpen,
   Plus,
   FileText,
-  Calendar,
   Trash2,
   Upload,
   LogOut,
   User,
   Search,
+  Loader2,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,6 +45,7 @@ export const Route = createFileRoute('/dashboard')({
 
 function DashboardPage() {
   const { user, loading, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -145,66 +149,63 @@ function DashboardPage() {
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse-soft">
-          <BookOpen className="w-16 h-16 text-primary" />
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-background via-secondary/20 to-background">
-      <header className="sticky top-0 z-50 glass border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-linear-to-br from-primary to-accent">
-              <BookOpen className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-xl font-bold">
-              <span className="text-gradient">Researchly</span>{' '}
-              <span className="text-foreground/80">Assist</span>
-            </h1>
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 bg-background border-b">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5" />
+            <h1 className="text-lg font-semibold">Researchly Assist</h1>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search papers..."
-                className="pl-10 w-64 bg-background/50"
+                className="pl-9 w-60"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme}>
+              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+
             <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 bg-linear-to-r from-primary to-primary/80">
+                <Button size="sm" className="gap-2">
                   <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline">Upload Paper</span>
+                  <span className="hidden sm:inline">Upload</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Upload Research Paper</DialogTitle>
+                  <DialogTitle>Upload Paper</DialogTitle>
                   <DialogDescription>
-                    Upload a PDF file to add it to your library
+                    Add a PDF to your library
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Paper Title</Label>
+                    <Label htmlFor="title">Title</Label>
                     <Input
                       id="title"
-                      placeholder="Enter paper title"
+                      placeholder="Paper title"
                       value={uploadTitle}
                       onChange={(e) => setUploadTitle(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>PDF File</Label>
+                    <Label>File</Label>
                     <div
-                      className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                      className="border border-dashed rounded-md p-6 text-center cursor-pointer hover:border-foreground/30 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <input
@@ -214,12 +215,12 @@ function DashboardPage() {
                         className="hidden"
                         onChange={handleFileSelect}
                       />
-                      <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+                      <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
                       {selectedFile ? (
-                        <p className="text-sm font-medium">{selectedFile.name}</p>
+                        <p className="text-sm">{selectedFile.name}</p>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Click to select or drag and drop a PDF
+                          Click to select a PDF
                         </p>
                       )}
                     </div>
@@ -238,11 +239,11 @@ function DashboardPage() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10">
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
                     <AvatarImage src={user.photoURL || undefined} />
-                    <AvatarFallback className="bg-primary/10">
-                      <User className="w-5 h-5 text-primary" />
+                    <AvatarFallback className="bg-muted">
+                      <User className="w-4 h-4 text-muted-foreground" />
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -251,8 +252,8 @@ function DashboardPage() {
                 <div className="flex items-center gap-2 p-2">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.photoURL || undefined} />
-                    <AvatarFallback className="bg-primary/10">
-                      <User className="w-4 h-4 text-primary" />
+                    <AvatarFallback className="bg-muted">
+                      <User className="w-4 h-4 text-muted-foreground" />
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col space-y-0.5">
@@ -271,13 +272,13 @@ function DashboardPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8 md:hidden">
+      <main className="container mx-auto px-4 py-6">
+        <div className="mb-6 md:hidden">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search papers..."
-              className="pl-10 bg-background/50"
+              className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -285,79 +286,65 @@ function DashboardPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-6 bg-muted rounded w-3/4" />
-                  <div className="h-4 bg-muted rounded w-1/2 mt-2" />
-                </CardHeader>
-                <CardContent>
-                  <div className="h-4 bg-muted rounded w-full" />
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : filteredPapers.length === 0 ? (
           <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted mb-4">
-              <FileText className="w-10 h-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">
+            <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-1">
               {searchQuery ? 'No papers found' : 'No papers yet'}
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-4">
               {searchQuery
                 ? 'Try a different search term'
-                : 'Upload your first research paper to get started'}
+                : 'Upload your first paper to get started'}
             </p>
             {!searchQuery && (
-              <Button onClick={() => setUploadOpen(true)} className="gap-2">
+              <Button onClick={() => setUploadOpen(true)} size="sm" className="gap-2">
                 <Plus className="w-4 h-4" />
                 Upload Paper
               </Button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPapers.map((paper, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredPapers.map((paper) => (
               <Link
                 key={paper._id}
                 to="/paper/$paperId"
                 params={{ paperId: paper._id }}
-                className="block animate-fade-in"
-                style={{ animationDelay: `${i * 0.05}s` }}
+                className="block"
               >
-                <Card className="h-full hover:shadow-lg transition-all hover:-translate-y-1 group">
-                  <CardHeader>
+                <Card className="h-full hover:bg-muted/50 transition-colors group">
+                  <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                        <CardTitle className="text-base line-clamp-2">
                           {paper.title}
                         </CardTitle>
-                        <CardDescription className="flex items-center gap-1 mt-2">
-                          <Calendar className="w-3 h-3" />
+                        <CardDescription className="mt-1 text-xs">
                           {new Date(paper.uploadedAt).toLocaleDateString()}
                         </CardDescription>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="shrink-0 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                         onClick={(e) => handleDelete(paper._id, e)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <FileText className="w-4 h-4" />
+                  <CardContent className="pt-0">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <FileText className="w-3 h-3" />
                       <span className="truncate">{paper.fileName}</span>
                     </div>
                     {paper.summary && (
-                      <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
-                        {paper.summary.slice(0, 150)}...
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                        {paper.summary.slice(0, 120)}...
                       </p>
                     )}
                   </CardContent>

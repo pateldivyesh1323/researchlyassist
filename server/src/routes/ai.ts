@@ -1,14 +1,12 @@
 import { Router, Response } from 'express';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI, Content } from '@google/generative-ai';
 import { Paper } from '../models/Paper.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
-const getOpenAIClient = () => {
-  return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+const getGeminiClient = () => {
+  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 };
 
 const fetchPdfAsBase64 = async (url: string): Promise<string> => {
@@ -34,42 +32,31 @@ router.post('/summary/:paperId', authMiddleware, async (req: AuthRequest, res: R
 
     const pdfBase64 = await fetchPdfAsBase64(paper.fileUrl);
 
-    const openai = getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a research paper assistant. Provide a comprehensive summary of the following research paper. Include:
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: pdfBase64,
+        },
+      },
+      {
+        text: `You are a research paper assistant. Provide a comprehensive summary of the following research paper. Include:
 1. Main objective/research question
 2. Methodology used
 3. Key findings
 4. Conclusions and implications
 5. Limitations mentioned
 
-Format your response in a clear, structured manner using markdown.`,
-        },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'file',
-              file: {
-                filename: paper.fileName,
-                file_data: `data:application/pdf;base64,${pdfBase64}`,
-              },
-            },
-            {
-              type: 'text',
-              text: 'Please analyze this research paper and provide a comprehensive summary.',
-            },
-          ],
-        },
-      ],
-      max_tokens: 2000,
-    });
+Format your response in a clear, structured manner using markdown.
 
-    const summary = completion.choices[0]?.message?.content || 'Unable to generate summary';
+Please analyze this research paper and provide a comprehensive summary.`,
+      },
+    ]);
+
+    const summary = result.response.text() || 'Unable to generate summary';
 
     paper.summary = summary;
     await paper.save();
@@ -99,51 +86,43 @@ router.post('/chat/:paperId', authMiddleware, async (req: AuthRequest, res: Resp
 
     const pdfBase64 = await fetchPdfAsBase64(paper.fileUrl);
 
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: `You are a helpful research assistant. You have access to the attached research paper. Answer questions about this paper accurately and helpfully. If the question cannot be answered from the paper content, say so.
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-3-flash-preview',
+      systemInstruction: `You are a helpful research assistant. You have access to the attached research paper. Answer questions about this paper accurately and helpfully. If the question cannot be answered from the paper content, say so.
 
 Paper Title: ${paper.title}`,
-      },
+    });
+
+    const history: Content[] = [
       {
         role: 'user',
-        content: [
+        parts: [
           {
-            type: 'file',
-            file: {
-              filename: paper.fileName,
-              file_data: `data:application/pdf;base64,${pdfBase64}`,
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: pdfBase64,
             },
           },
           {
-            type: 'text',
             text: 'I have attached a research paper. I will ask questions about it.',
           },
         ],
       },
       {
-        role: 'assistant',
-        content: 'I have received the research paper. Please go ahead and ask your questions about it.',
+        role: 'model',
+        parts: [{ text: 'I have received the research paper. Please go ahead and ask your questions about it.' }],
       },
       ...(chatHistory || []).map((msg: { role: string; content: string }) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      })),
-      {
-        role: 'user',
-        content: message,
-      },
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }],
+      } as Content)),
     ];
 
-    const openai = getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages,
-      max_tokens: 1000,
-    });
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(message);
 
-    const response = completion.choices[0]?.message?.content || 'Unable to generate response';
+    const response = result.response.text() || 'Unable to generate response';
 
     res.json({ response });
   } catch (error) {

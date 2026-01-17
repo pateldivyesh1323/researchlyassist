@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { routeTree } from './routeTree.gen';
 import './index.css';
 
@@ -15,8 +16,10 @@ declare module '@tanstack/react-router' {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

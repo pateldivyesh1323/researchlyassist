@@ -3,24 +3,15 @@
 @custom-variant dark (&:is(.dark *));
 
 @font-face {
-  font-family: 'Outfit';
+  font-family: 'Inter';
   font-style: normal;
-  font-weight: 300 700;
+  font-weight: 400 600;
   font-display: swap;
-  src: url('https://fonts.gstatic.com/s/outfit/v11/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4G-EiAou6Y.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Cormorant Garamond';
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-  src: url('https://fonts.gstatic.com/s/cormorantgaramond/v16/co3bmX5slCNuHLi8bLeY9MK7whWMhyjYqXtK.woff2') format('woff2');
+  src: url('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff2') format('woff2');
 }
 
 @theme inline {
-  --font-sans: 'Outfit', system-ui, sans-serif;
-  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
   
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -49,46 +40,46 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.002 240);
-  --foreground: oklch(0.17 0.02 260);
+  --radius: 0.5rem;
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.15 0.01 260);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0.02 260);
+  --card-foreground: oklch(0.15 0.01 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0.02 260);
-  --primary: oklch(0.45 0.18 260);
-  --primary-foreground: oklch(0.98 0.005 260);
-  --secondary: oklch(0.95 0.01 260);
-  --secondary-foreground: oklch(0.35 0.05 260);
-  --muted: oklch(0.96 0.008 260);
-  --muted-foreground: oklch(0.5 0.02 260);
-  --accent: oklch(0.75 0.15 75);
-  --accent-foreground: oklch(0.25 0.05 75);
-  --destructive: oklch(0.6 0.22 25);
-  --border: oklch(0.91 0.01 260);
-  --input: oklch(0.91 0.01 260);
-  --ring: oklch(0.55 0.18 260);
+  --popover-foreground: oklch(0.15 0.01 260);
+  --primary: oklch(0.25 0.01 260);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.005 260);
+  --secondary-foreground: oklch(0.25 0.01 260);
+  --muted: oklch(0.96 0.005 260);
+  --muted-foreground: oklch(0.45 0.01 260);
+  --accent: oklch(0.96 0.005 260);
+  --accent-foreground: oklch(0.25 0.01 260);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.25 0.01 260);
 }
 
 .dark {
-  --background: oklch(0.13 0.02 260);
-  --foreground: oklch(0.95 0.01 260);
-  --card: oklch(0.17 0.025 260);
-  --card-foreground: oklch(0.95 0.01 260);
-  --popover: oklch(0.17 0.025 260);
-  --popover-foreground: oklch(0.95 0.01 260);
-  --primary: oklch(0.65 0.18 260);
-  --primary-foreground: oklch(0.12 0.02 260);
-  --secondary: oklch(0.22 0.03 260);
-  --secondary-foreground: oklch(0.9 0.01 260);
-  --muted: oklch(0.22 0.025 260);
-  --muted-foreground: oklch(0.65 0.02 260);
-  --accent: oklch(0.7 0.14 75);
-  --accent-foreground: oklch(0.15 0.03 75);
-  --destructive: oklch(0.65 0.2 25);
-  --border: oklch(0.25 0.025 260);
-  --input: oklch(0.25 0.03 260);
-  --ring: oklch(0.6 0.16 260);
+  --background: oklch(0.18 0.01 260);
+  --foreground: oklch(0.9 0.005 260);
+  --card: oklch(0.22 0.01 260);
+  --card-foreground: oklch(0.9 0.005 260);
+  --popover: oklch(0.22 0.01 260);
+  --popover-foreground: oklch(0.9 0.005 260);
+  --primary: oklch(0.9 0.005 260);
+  --primary-foreground: oklch(0.18 0.01 260);
+  --secondary: oklch(0.25 0.01 260);
+  --secondary-foreground: oklch(0.9 0.005 260);
+  --muted: oklch(0.25 0.01 260);
+  --muted-foreground: oklch(0.65 0.01 260);
+  --accent: oklch(0.25 0.01 260);
+  --accent-foreground: oklch(0.9 0.005 260);
+  --destructive: oklch(0.6 0.18 25);
+  --border: oklch(0.3 0.01 260);
+  --input: oklch(0.3 0.01 260);
+  --ring: oklch(0.9 0.005 260);
 }
 
 @layer base {
@@ -100,30 +91,20 @@
   }
 }
 
-@layer utilities {
-  .text-gradient {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .glass {
-    backdrop-filter: blur(12px);
-    background: oklch(1 0 0 / 0.7);
-  }
-  
-  .dark .glass {
-    background: oklch(0.17 0.025 260 / 0.8);
-  }
-}
-
 .react-pdf__Page {
   position: relative;
 }
 
 .react-pdf__Page__canvas {
   display: block;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark .react-pdf__Page__canvas {
+  filter: invert(0.85) hue-rotate(180deg) contrast(1) brightness(1.1);
 }
 
 .react-pdf__Page__textContent {
@@ -145,7 +126,11 @@
 }
 
 .react-pdf__Page__textContent span::selection {
-  background: oklch(0.55 0.18 260 / 0.3);
+  background: oklch(0.25 0.01 260 / 0.2);
+}
+
+.dark .react-pdf__Page__textContent span::selection {
+  background: oklch(0.7 0.01 260 / 0.3);
 }
 
 .react-pdf__Page__annotations {
@@ -154,45 +139,6 @@
   left: 0;
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulse-soft {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.5s ease-out forwards;
-}
-
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out forwards;
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 2s ease-in-out infinite;
+.dark .react-pdf__Page__annotations {
+  filter: invert(0.9) hue-rotate(180deg);
 }
