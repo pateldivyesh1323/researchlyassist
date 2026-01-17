@@ -1,45 +1,32 @@
 import { Router, Response } from 'express';
-import { Note } from '../models/Note.js';
+import { getOrCreateNote, updateNote } from '../controllers/notes.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/:paperId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    let note = await Note.findOne({ 
-      paperId: req.params.paperId, 
-      userId: req.user!.userId 
-    });
-    
-    if (!note) {
-      note = new Note({
-        userId: req.user!.userId,
-        paperId: req.params.paperId,
-        content: '',
-      });
-      await note.save();
-    }
-    
-    res.json(note);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch notes' });
+  const paperId = req.params.paperId as string;
+  const { note, error } = await getOrCreateNote(paperId, req.user!.userId);
+
+  if (error || !note) {
+    res.status(500).json({ error: error || 'Unknown error' });
+    return;
   }
+
+  res.json(note);
 });
 
 router.put('/:paperId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { content } = req.body;
-    
-    const note = await Note.findOneAndUpdate(
-      { paperId: req.params.paperId, userId: req.user!.userId },
-      { content, updatedAt: new Date() },
-      { new: true, upsert: true }
-    );
-    
-    res.json(note);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update notes' });
+  const paperId = req.params.paperId as string;
+  const { content } = req.body;
+  const { note, error } = await updateNote(paperId, req.user!.userId, content);
+
+  if (error || !note) {
+    res.status(500).json({ error: error || 'Unknown error' });
+    return;
   }
+
+  res.json(note);
 });
 
 export default router;

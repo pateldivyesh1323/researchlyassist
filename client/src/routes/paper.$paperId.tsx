@@ -8,7 +8,8 @@ import ReactMarkdown from 'react-markdown';
 import MDEditor from '@uiw/react-md-editor';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { papersApi, aiApi, notesApi, Paper } from '@/lib/api';
+import { papersApi, Paper } from '@/lib/api';
+import { useNotes, useAISummary, useAIChat } from '@/lib/websocket';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -58,17 +59,19 @@ export default function PaperViewPage() {
   const [scale, setScale] = useState(1.0);
 
   const [summary, setSummary] = useState<string>('');
-  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [streamingSummary, setStreamingSummary] = useState<string>('');
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
+  const [streamingResponse, setStreamingResponse] = useState<string>('');
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatHistoryRef = useRef<ChatMessage[]>([]);
+  const pendingMessageRef = useRef<string>('');
 
   const [noteContent, setNoteContent] = useState('');
-  const [savingNotes, setSavingNotes] = useState(false);
-  const [debouncedNoteContent] = useDebounce(noteContent, 5000);
+  const [debouncedNoteContent] = useDebounce(noteContent, 2000);
   const hasUserModified = useRef(false);
+  const notesFetchedRef = useRef(false);
   const pdfScrollRef = useRef<HTMLDivElement>(null);
 
   const [panelWidth, setPanelWidth] = useState(400);
@@ -76,6 +79,54 @@ export default function PaperViewPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const MIN_PANEL_WIDTH = 280;
   const MAX_PANEL_WIDTH = 700;
+
+  const { fetchNotes, updateNotes, isSaving: savingNotes, isConnected: notesConnected } = useNotes({
+    paperId,
+    onContent: (content) => {
+      if (!notesFetchedRef.current) {
+        setNoteContent(content);
+        notesFetchedRef.current = true;
+      }
+    },
+    onError: (error) => {
+      toast.error(error.error);
+    },
+  });
+
+  const { generateSummary, isGenerating: generatingSummary } = useAISummary({
+    paperId,
+    onChunk: (chunk) => {
+      setStreamingSummary((prev) => prev + chunk);
+    },
+    onComplete: (completeSummary) => {
+      setSummary(completeSummary);
+      setStreamingSummary('');
+      toast.success('Summary generated!');
+    },
+    onError: (error) => {
+      setStreamingSummary('');
+      toast.error(error);
+    },
+  });
+
+  const { sendMessage: sendChatMessage, isSending: sendingMessage } = useAIChat({
+    paperId,
+    onChunk: (chunk) => {
+      setStreamingResponse((prev) => prev + chunk);
+    },
+    onComplete: (response) => {
+      const assistantMessage: ChatMessage = { role: 'assistant', content: response };
+      setChatMessages((prev) => [...prev, assistantMessage]);
+      chatHistoryRef.current = [...chatHistoryRef.current, assistantMessage];
+      setStreamingResponse('');
+    },
+    onError: (error) => {
+      toast.error(error);
+      setChatMessages((prev) => prev.slice(0, -1));
+      chatHistoryRef.current = chatHistoryRef.current.slice(0, -1);
+      setStreamingResponse('');
+    },
+  });
 
   const updateSearchParams = (params: { tab?: PanelTab }) => {
     if (params.tab) {
@@ -86,15 +137,20 @@ export default function PaperViewPage() {
   useEffect(() => {
     if (user && paperId) {
       fetchPaper();
-      fetchNotes();
     }
   }, [user, paperId]);
+
+  useEffect(() => {
+    if (notesConnected && !notesFetchedRef.current) {
+      fetchNotes();
+    }
+  }, [notesConnected, fetchNotes]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+  }, [chatMessages, streamingResponse]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !containerRef.current) return;
@@ -146,68 +202,34 @@ export default function PaperViewPage() {
     }
   };
 
-  const fetchNotes = async () => {
-    try {
-      const data = await notesApi.get(paperId);
-      setNoteContent(data.content);
-    } catch (error) {
-      console.error('Failed to fetch notes:', error);
-    }
+  const handleGenerateSummary = () => {
+    setStreamingSummary('');
+    setSummary('');
+    generateSummary();
   };
 
-  const handleGenerateSummary = async () => {
-    setGeneratingSummary(true);
-    try {
-      const { summary: newSummary } = await aiApi.generateSummary(paperId);
-      setSummary(newSummary);
-      toast.success('Summary generated!');
-    } catch (error) {
-      toast.error('Failed to generate summary');
-    } finally {
-      setGeneratingSummary(false);
-    }
-  };
-
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!chatInput.trim()) return;
 
     const userMessage: ChatMessage = { role: 'user', content: chatInput };
+    pendingMessageRef.current = chatInput;
     setChatMessages((prev) => [...prev, userMessage]);
+    chatHistoryRef.current = [...chatHistoryRef.current, userMessage];
     setChatInput('');
-    setSendingMessage(true);
-
-    try {
-      const { response } = await aiApi.chat(paperId, chatInput, chatMessages);
-      const assistantMessage: ChatMessage = { role: 'assistant', content: response };
-      setChatMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      toast.error('Failed to send message');
-      setChatMessages((prev) => prev.slice(0, -1));
-    } finally {
-      setSendingMessage(false);
-    }
+    setStreamingResponse('');
+    
+    sendChatMessage(pendingMessageRef.current, chatHistoryRef.current.slice(0, -1));
   };
 
   useEffect(() => {
-    if (hasUserModified.current) {
-      saveNotes(debouncedNoteContent);
+    if (hasUserModified.current && notesFetchedRef.current) {
+      updateNotes(debouncedNoteContent);
     }
-  }, [debouncedNoteContent]);
-
-  const saveNotes = async (content: string) => {
-    setSavingNotes(true);
-    try {
-      await notesApi.update(paperId, content);
-    } catch (error) {
-      toast.error('Failed to save notes');
-    } finally {
-      setSavingNotes(false);
-    }
-  };
+  }, [debouncedNoteContent, updateNotes]);
 
   const handleManualSave = () => {
     hasUserModified.current = false;
-    saveNotes(noteContent);
+    updateNotes(noteContent);
     toast.success('Notes saved!');
   };
 
@@ -219,6 +241,8 @@ export default function PaperViewPage() {
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
   }
+
+  const displaySummary = streamingSummary || summary;
 
   if (loading) {
     return (
@@ -353,9 +377,12 @@ export default function PaperViewPage() {
             <TabsContent value="summary" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
               <ScrollArea className="flex-1">
                 <div className="p-4">
-                  {summary ? (
+                  {displaySummary ? (
                     <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown>{summary}</ReactMarkdown>
+                      <ReactMarkdown>{displaySummary}</ReactMarkdown>
+                      {generatingSummary && (
+                        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -386,7 +413,7 @@ export default function PaperViewPage() {
                   )}
                 </div>
               </ScrollArea>
-              {summary && (
+              {(summary || streamingSummary) && !generatingSummary && (
                 <div className="p-3 border-t">
                   <Button
                     onClick={handleGenerateSummary}
@@ -395,17 +422,8 @@ export default function PaperViewPage() {
                     size="sm"
                     className="w-full gap-2"
                   >
-                    {generatingSummary ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Regenerating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Regenerate
-                      </>
-                    )}
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Regenerate
                   </Button>
                 </div>
               )}
@@ -414,7 +432,7 @@ export default function PaperViewPage() {
             <TabsContent value="chat" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
               <ScrollArea className="flex-1" ref={chatScrollRef}>
                 <div className="p-4 space-y-3">
-                  {chatMessages.length === 0 ? (
+                  {chatMessages.length === 0 && !streamingResponse ? (
                     <div className="text-center py-8">
                       <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
                       <h3 className="font-medium mb-1">Chat with your paper</h3>
@@ -423,35 +441,47 @@ export default function PaperViewPage() {
                       </p>
                     </div>
                   ) : (
-                    chatMessages.map((msg, i) => (
-                      <div
-                        key={i}
-                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
+                    <>
+                      {chatMessages.map((msg, i) => (
                         <div
-                          className={`max-w-[85%] rounded-lg px-3 py-2 ${
-                            msg.role === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
-                          }`}
+                          key={i}
+                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
-                          {msg.role === 'assistant' ? (
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                              <ReactMarkdown>{msg.content}</ReactMarkdown>
-                            </div>
-                          ) : (
-                            <p className="text-sm">{msg.content}</p>
-                          )}
+                          <div
+                            className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                              msg.role === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                            }`}
+                          >
+                            {msg.role === 'assistant' ? (
+                              <div className="prose prose-sm dark:prose-invert max-w-none">
+                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                              </div>
+                            ) : (
+                              <p className="text-sm">{msg.content}</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                  {sendingMessage && (
-                    <div className="flex justify-start">
-                      <div className="bg-muted rounded-lg px-3 py-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      </div>
-                    </div>
+                      ))}
+                      {streamingResponse && (
+                        <div className="flex justify-start">
+                          <div className="max-w-[85%] rounded-lg px-3 py-2 bg-muted">
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                              <ReactMarkdown>{streamingResponse}</ReactMarkdown>
+                              <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {sendingMessage && !streamingResponse && (
+                        <div className="flex justify-start">
+                          <div className="bg-muted rounded-lg px-3 py-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </ScrollArea>
