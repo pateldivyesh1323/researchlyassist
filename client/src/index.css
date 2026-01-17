@@ -142,3 +142,77 @@
 .dark .react-pdf__Page__annotations {
   filter: invert(0.9) hue-rotate(180deg);
 }
+
+.w-md-editor {
+  --md-editor-border-color: var(--border) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.w-md-editor-toolbar {
+  border-bottom: 1px solid var(--border) !important;
+  background: transparent !important;
+  padding: 6px 8px !important;
+  min-height: auto !important;
+  height: auto !important;
+}
+
+.w-md-editor-toolbar ul > li > button {
+  height: 28px !important;
+  width: 28px !important;
+  margin: 0 1px !important;
+}
+
+.w-md-editor-content {
+  height: calc(100% - 40px) !important;
+}
+
+.w-md-editor-text-pre > code,
+.w-md-editor-text-input,
+.w-md-editor-text {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+.w-md-editor-preview {
+  padding: 16px !important;
+}
+
+.wmde-markdown {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+[data-color-mode="dark"] .w-md-editor {
+  --color-canvas-default: var(--background) !important;
+  --color-fg-default: var(--foreground) !important;
+  --color-border-default: var(--border) !important;
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+[data-color-mode="light"] .w-md-editor {
+  --color-canvas-default: var(--background) !important;
+  --color-fg-default: var(--foreground) !important;
+  --color-border-default: var(--border) !important;
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+[data-color-mode="dark"] .wmde-markdown,
+[data-color-mode="light"] .wmde-markdown {
+  background-color: transparent !important;
+  color: var(--foreground) !important;
+}
+
+[data-color-mode="dark"] .wmde-markdown code,
+[data-color-mode="light"] .wmde-markdown code {
+  background-color: var(--muted) !important;
+  color: var(--foreground) !important;
+}
+
+[data-color-mode="dark"] .wmde-markdown pre,
+[data-color-mode="light"] .wmde-markdown pre {
+  background-color: var(--muted) !important;
+}

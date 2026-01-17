@@ -4,12 +4,12 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import ReactMarkdown from 'react-markdown';
+import MDEditor from '@uiw/react-md-editor';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { papersApi, aiApi, notesApi, Paper } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -31,8 +31,19 @@ import { toast } from 'sonner';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+type PanelTab = 'summary' | 'chat' | 'notes';
+
+interface PaperSearchParams {
+  tab?: PanelTab;
+}
+
 export const Route = createFileRoute('/paper/$paperId')({
   component: PaperViewPage,
+  validateSearch: (search: Record<string, unknown>): PaperSearchParams => {
+    return {
+      tab: (search.tab as PanelTab) || 'summary',
+    };
+  },
 });
 
 interface ChatMessage {
@@ -42,6 +53,7 @@ interface ChatMessage {
 
 function PaperViewPage() {
   const { paperId } = Route.useParams();
+  const { tab } = Route.useSearch();
   const { user, loading: authLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -63,6 +75,15 @@ function PaperViewPage() {
   const [savingNotes, setSavingNotes] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pdfScrollRef = useRef<HTMLDivElement>(null);
+
+  const updateSearchParams = (params: Partial<PaperSearchParams>) => {
+    navigate({
+      to: '/paper/$paperId',
+      params: { paperId },
+      search: (prev) => ({ ...prev, ...params }),
+      replace: true,
+    });
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -171,6 +192,10 @@ function PaperViewPage() {
     toast.success('Notes saved!');
   };
 
+  const handleEditorChange = (value: string | undefined) => {
+    handleNoteChange(value || '');
+  };
+
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
   }
@@ -273,7 +298,11 @@ function PaperViewPage() {
         </div>
 
         <div className="w-[400px] flex flex-col bg-background overflow-hidden">
-          <Tabs defaultValue="summary" className="flex-1 flex flex-col overflow-hidden">
+          <Tabs 
+            value={tab} 
+            onValueChange={(value) => updateSearchParams({ tab: value as PanelTab })}
+            className="flex-1 flex flex-col overflow-hidden"
+          >
             <TabsList className="shrink-0 grid w-full grid-cols-3 rounded-none border-b h-10">
               <TabsTrigger value="summary" className="gap-1.5 text-xs">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -418,12 +447,17 @@ function PaperViewPage() {
             </TabsContent>
 
             <TabsContent value="notes" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
-              <div className="flex-1 p-4">
-                <Textarea
-                  placeholder="Write your notes here..."
-                  className="h-full min-h-[300px] resize-none"
+              <div className="flex-1 overflow-hidden" data-color-mode={theme}>
+                <MDEditor
                   value={noteContent}
-                  onChange={(e) => handleNoteChange(e.target.value)}
+                  onChange={handleEditorChange}
+                  height="100%"
+                  preview="live"
+                  hideToolbar={false}
+                  enableScroll={true}
+                  textareaProps={{
+                    placeholder: 'Write your notes in Markdown...',
+                  }}
                 />
               </div>
               <div className="p-3 border-t flex items-center justify-between">
