@@ -33,7 +33,7 @@ router.post('/summary/:paperId', authMiddleware, async (req: AuthRequest, res: R
     const pdfBase64 = await fetchPdfAsBase64(paper.fileUrl);
 
     const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const result = await model.generateContent([
       {
@@ -88,7 +88,7 @@ router.post('/chat/:paperId', authMiddleware, async (req: AuthRequest, res: Resp
 
     const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       systemInstruction: `You are a helpful research assistant. You have access to the attached research paper. Answer questions about this paper accurately and helpfully. If the question cannot be answered from the paper content, say so.
 
 Paper Title: ${paper.title}`,

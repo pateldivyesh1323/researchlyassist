@@ -1,13 +1,14 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { PublicRoute } from '@/components/wrappers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, Loader2, Moon, Sun } from 'lucide-react';
+import { BookOpen, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const Route = createFileRoute('/')({
@@ -15,18 +16,11 @@ export const Route = createFileRoute('/')({
 });
 
 function HomePage() {
-  const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (user && !loading) {
-      navigate({ to: '/dashboard' });
-    }
-  }, [user, loading, navigate]);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,15 +60,8 @@ function HomePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
+    <PublicRoute>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <header className="flex items-center justify-between mb-16">
@@ -229,5 +216,6 @@ function HomePage() {
         </main>
       </div>
     </div>
+    </PublicRoute>
   );
 }

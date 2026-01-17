@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { PrivateRoute } from '@/components/wrappers';
 import { papersApi, Paper, PaginationInfo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,7 +55,7 @@ export const Route = createFileRoute('/dashboard')({
 });
 
 function DashboardPage() {
-  const { user, loading, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
@@ -88,12 +89,6 @@ function DashboardPage() {
       setIsLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate({ to: '/' });
-    }
-  }, [user, loading, navigate]);
 
   useEffect(() => {
     if (prevDebouncedSearch.current !== debouncedSearch) {
@@ -193,15 +188,8 @@ function DashboardPage() {
   const totalPages = pagination?.totalPages || 1;
   const total = pagination?.total || 0;
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
+    <PrivateRoute>
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 bg-background border-b">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -308,7 +296,7 @@ function DashboardPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || undefined} />
+                    <AvatarImage src={user?.photoURL || undefined} />
                     <AvatarFallback className="bg-muted">
                       <User className="w-4 h-4 text-muted-foreground" />
                     </AvatarFallback>
@@ -318,14 +306,14 @@ function DashboardPage() {
               <DropdownMenuContent className="w-56" align="end">
                 <div className="flex items-center gap-2 p-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || undefined} />
+                    <AvatarImage src={user?.photoURL || undefined} />
                     <AvatarFallback className="bg-muted">
                       <User className="w-4 h-4 text-muted-foreground" />
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col space-y-0.5">
-                    <p className="text-sm font-medium">{user.displayName || 'User'}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    <p className="text-sm font-medium">{user?.displayName || 'User'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                   </div>
                 </div>
                 <DropdownMenuSeparator />
@@ -495,5 +483,6 @@ function DashboardPage() {
         )}
       </main>
     </div>
+    </PrivateRoute>
   );
 }

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useDebounce } from 'use-debounce';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -7,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import MDEditor from '@uiw/react-md-editor';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { PrivateRoute } from '@/components/wrappers';
 import { papersApi, aiApi, notesApi, Paper } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +57,7 @@ interface ChatMessage {
 function PaperViewPage() {
   const { paperId } = Route.useParams();
   const { tab } = Route.useSearch();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -74,7 +76,8 @@ function PaperViewPage() {
 
   const [noteContent, setNoteContent] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [debouncedNoteContent] = useDebounce(noteContent, 5000);
+  const hasUserModified = useRef(false);
   const pdfScrollRef = useRef<HTMLDivElement>(null);
 
   const [panelWidth, setPanelWidth] = useState(400);
@@ -91,12 +94,6 @@ function PaperViewPage() {
       replace: true,
     });
   };
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate({ to: '/' });
-    }
-  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     if (user && paperId) {
@@ -203,17 +200,11 @@ function PaperViewPage() {
     }
   };
 
-  const handleNoteChange = (value: string) => {
-    setNoteContent(value);
-    
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+  useEffect(() => {
+    if (hasUserModified.current) {
+      saveNotes(debouncedNoteContent);
     }
-
-    saveTimeoutRef.current = setTimeout(() => {
-      saveNotes(value);
-    }, 1000);
-  };
+  }, [debouncedNoteContent]);
 
   const saveNotes = async (content: string) => {
     setSavingNotes(true);
@@ -227,34 +218,36 @@ function PaperViewPage() {
   };
 
   const handleManualSave = () => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+    hasUserModified.current = false;
     saveNotes(noteContent);
     toast.success('Notes saved!');
   };
 
   const handleEditorChange = (value: string | undefined) => {
-    handleNoteChange(value || '');
+    hasUserModified.current = true;
+    setNoteContent(value || '');
   };
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
   }
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
+      <PrivateRoute>
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
+      </PrivateRoute>
     );
   }
 
   if (!paper) {
-    return null;
+    return <PrivateRoute>{null}</PrivateRoute>;
   }
 
   return (
+    <PrivateRoute>
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <header className="shrink-0 z-50 bg-background border-b">
         <div className="container mx-auto px-4 py-2 flex items-center gap-3">
@@ -535,5 +528,6 @@ function PaperViewPage() {
         </div>
       </div>
     </div>
+    </PrivateRoute>
   );
 }
