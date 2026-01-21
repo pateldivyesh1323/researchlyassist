@@ -5,9 +5,6 @@ const TOKEN_KEY = 'auth_token';
 const serverUrl = import.meta.env.VITE_SERVER_URL;
 const baseURL = serverUrl ? `${serverUrl}/api` : '/api';
 
-console.log('[API] VITE_SERVER_URL:', serverUrl);
-console.log('[API] baseURL:', baseURL);
-
 const api = axios.create({
   baseURL,
 });

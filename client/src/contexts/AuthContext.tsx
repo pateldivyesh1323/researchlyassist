@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
+import api from '@/lib/api';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
@@ -50,23 +51,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const firebaseToken = await firebaseUser.getIdToken();
       
-      const response = await fetch('/api/auth/authenticate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firebaseToken,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-        }),
+      const response = await api.post('/auth/authenticate', {
+        firebaseToken,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
       });
 
-      if (!response.ok) {
-        throw new Error('Authentication failed');
-      }
-
-      const data = await response.json();
+      const data = response.data;
       
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
@@ -79,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(USER_KEY);
       setToken(null);
       setUser(null);
+      throw new Error('Failed to connect to server. Please try again.');
     } finally {
       authInProgress.current = false;
     }
@@ -93,25 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await api.get('/auth/me', {
         headers: {
           Authorization: `Bearer ${storedToken}`,
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        setToken(storedToken);
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-        return true;
-      } else {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        setToken(null);
-        setUser(null);
-        return false;
-      }
+      const data = response.data;
+      setUser(data.user);
+      setToken(storedToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      return true;
     } catch (error) {
       console.error('Token verification error:', error);
       localStorage.removeItem(TOKEN_KEY);
