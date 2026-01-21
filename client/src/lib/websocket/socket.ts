@@ -27,7 +27,7 @@ class SocketManager {
         return;
       }
 
-      this.socket = io({
+      this.socket = io(import.meta.env.VITE_SERVER_URL || undefined, {
         auth: { token },
         transports: ['websocket', 'polling'],
       }) as TypedSocket;
