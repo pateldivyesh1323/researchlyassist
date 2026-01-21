@@ -25,7 +25,8 @@ export const getOrCreateNote = async (
       await note.save();
     }
 
-    return { note: note.toObject() as NoteData, error: null };
+    const noteObj = note.toObject();
+    return { note: { ...noteObj, _id: noteObj._id.toString() } as NoteData, error: null };
   } catch (error) {
     console.error('Get note error:', error);
     return { note: null, error: 'Failed to fetch notes' };
@@ -44,7 +45,8 @@ export const updateNote = async (
       { new: true, upsert: true }
     );
 
-    return { note: note?.toObject() as NoteData, error: null };
+    const noteObj = note?.toObject();
+    return { note: noteObj ? { ...noteObj, _id: noteObj._id.toString() } as NoteData : null, error: null };
   } catch (error) {
     console.error('Update note error:', error);
     return { note: null, error: 'Failed to update notes' };
