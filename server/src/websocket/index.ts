@@ -10,10 +10,15 @@ import {
 } from './types.js';
 
 export const initializeWebSocket = (httpServer: HttpServer): Server => {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',') 
+    : ['http://localhost:5173', 'http://localhost:3000'];
+
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: {
-      origin: '*',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
+      credentials: true,
     },
   });
 

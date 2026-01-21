@@ -27,7 +27,10 @@ class SocketManager {
         return;
       }
 
-      this.socket = io(import.meta.env.VITE_SERVER_URL || undefined, {
+      const serverUrl = import.meta.env.VITE_SERVER_URL || undefined;
+      console.log('[Socket] Connecting to:', serverUrl || 'same origin');
+      
+      this.socket = io(serverUrl, {
         auth: { token },
         transports: ['websocket', 'polling'],
       }) as TypedSocket;
