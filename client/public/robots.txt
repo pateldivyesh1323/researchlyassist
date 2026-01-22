@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://researchlyassist.pateldivyesh.com/sitemap.xml
