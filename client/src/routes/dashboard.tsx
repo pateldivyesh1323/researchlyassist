@@ -44,7 +44,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Tag,
-  X,
   Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -72,6 +71,8 @@ export default function DashboardPage() {
   const prevDebouncedSearch = useRef(debouncedSearch);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTag, setSelectedTag] = useState<string>('');
+  const [deletePaper, setDeletePaper] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -167,18 +168,25 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (paper: Paper, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this paper?')) return;
+    setDeletePaper({ id: paper._id, title: paper.title });
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!deletePaper) return;
+    setDeleting(true);
     try {
-      await papersApi.delete(id);
+      await papersApi.delete(deletePaper.id);
       toast.success('Paper deleted');
+      setDeletePaper(null);
       fetchPapers(debouncedSearch, sortBy, currentPage, selectedTag);
       fetchTags();
     } catch (error) {
       toast.error('Failed to delete paper');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -350,6 +358,35 @@ export default function DashboardPage() {
               </DialogContent>
             </Dialog>
 
+            <Dialog open={!!deletePaper} onOpenChange={(open) => !open && setDeletePaper(null)}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Delete paper</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to delete &quot;{deletePaper?.title}&quot;? This cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeletePaper(null)}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteConfirm}
+                    disabled={deleting}
+                    className="gap-2"
+                  >
+                    {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Delete
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -464,7 +501,7 @@ export default function DashboardPage() {
                         variant="ghost"
                         size="icon"
                         className="shrink-0 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                        onClick={(e) => handleDelete(paper._id, e)}
+                        onClick={(e) => handleDeleteClick(paper, e)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
