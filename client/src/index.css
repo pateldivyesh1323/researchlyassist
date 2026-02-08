@@ -3,216 +3,216 @@
 @custom-variant dark (&:is(.dark *));
 
 @font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff2') format('woff2');
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url("https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff2")
+        format("woff2");
 }
 
 @theme inline {
-  --font-sans: 'Inter', system-ui, sans-serif;
-  
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+    --font-sans: "Inter", system-ui, sans-serif;
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.15 0.01 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.01 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.01 260);
-  --primary: oklch(0.25 0.01 260);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.005 260);
-  --secondary-foreground: oklch(0.25 0.01 260);
-  --muted: oklch(0.96 0.005 260);
-  --muted-foreground: oklch(0.45 0.01 260);
-  --accent: oklch(0.96 0.005 260);
-  --accent-foreground: oklch(0.25 0.01 260);
-  --destructive: oklch(0.55 0.2 25);
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.25 0.01 260);
+    --radius: 0.5rem;
+    --background: oklch(0.99 0 0);
+    --foreground: oklch(0.15 0.01 260);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.15 0.01 260);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.15 0.01 260);
+    --primary: oklch(0.25 0.01 260);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.96 0.005 260);
+    --secondary-foreground: oklch(0.25 0.01 260);
+    --muted: oklch(0.96 0.005 260);
+    --muted-foreground: oklch(0.45 0.01 260);
+    --accent: oklch(0.96 0.005 260);
+    --accent-foreground: oklch(0.25 0.01 260);
+    --destructive: oklch(0.55 0.2 25);
+    --border: oklch(0.92 0 0);
+    --input: oklch(0.92 0 0);
+    --ring: oklch(0.25 0.01 260);
 }
 
 .dark {
-  --background: oklch(0.18 0.01 260);
-  --foreground: oklch(0.9 0.005 260);
-  --card: oklch(0.22 0.01 260);
-  --card-foreground: oklch(0.9 0.005 260);
-  --popover: oklch(0.22 0.01 260);
-  --popover-foreground: oklch(0.9 0.005 260);
-  --primary: oklch(0.9 0.005 260);
-  --primary-foreground: oklch(0.18 0.01 260);
-  --secondary: oklch(0.25 0.01 260);
-  --secondary-foreground: oklch(0.9 0.005 260);
-  --muted: oklch(0.25 0.01 260);
-  --muted-foreground: oklch(0.65 0.01 260);
-  --accent: oklch(0.25 0.01 260);
-  --accent-foreground: oklch(0.9 0.005 260);
-  --destructive: oklch(0.6 0.18 25);
-  --border: oklch(0.3 0.01 260);
-  --input: oklch(0.3 0.01 260);
-  --ring: oklch(0.9 0.005 260);
+    --background: oklch(0.18 0.01 260);
+    --foreground: oklch(0.9 0.005 260);
+    --card: oklch(0.22 0.01 260);
+    --card-foreground: oklch(0.9 0.005 260);
+    --popover: oklch(0.22 0.01 260);
+    --popover-foreground: oklch(0.9 0.005 260);
+    --primary: oklch(0.9 0.005 260);
+    --primary-foreground: oklch(0.18 0.01 260);
+    --secondary: oklch(0.25 0.01 260);
+    --secondary-foreground: oklch(0.9 0.005 260);
+    --muted: oklch(0.25 0.01 260);
+    --muted-foreground: oklch(0.65 0.01 260);
+    --accent: oklch(0.25 0.01 260);
+    --accent-foreground: oklch(0.9 0.005 260);
+    --destructive: oklch(0.6 0.18 25);
+    --border: oklch(0.3 0.01 260);
+    --input: oklch(0.3 0.01 260);
+    --ring: oklch(0.9 0.005 260);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-  }
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground font-sans antialiased;
+    }
 }
 
 .react-pdf__Page {
-  position: relative;
+    position: relative;
+}
+
+.dark .react-pdf__Page {
+  filter: invert(0.88) hue-rotate(180deg) brightness(1.2);
 }
 
 .react-pdf__Page__canvas {
-  display: block;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.dark .react-pdf__Page__canvas {
-  filter: invert(0.85) hue-rotate(180deg) contrast(1) brightness(1.1);
+    display: block;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .react-pdf__Page__textContent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-  line-height: 1;
-  pointer-events: all;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    line-height: 1;
+    pointer-events: all;
 }
 
 .react-pdf__Page__textContent span {
-  color: transparent;
-  position: absolute;
-  white-space: pre;
-  transform-origin: 0% 0%;
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    transform-origin: 0% 0%;
 }
 
 .react-pdf__Page__textContent span::selection {
-  background: oklch(0.25 0.01 260 / 0.2);
+    background: oklch(0.25 0.01 260 / 0.2);
 }
 
 .dark .react-pdf__Page__textContent span::selection {
-  background: oklch(0.7 0.01 260 / 0.3);
+    background: oklch(0.7 0.01 260 / 0.3);
 }
 
 .react-pdf__Page__annotations {
-  position: absolute;
-  top: 0;
-  left: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .dark .react-pdf__Page__annotations {
-  filter: invert(0.9) hue-rotate(180deg);
+    color-scheme: light;
+    filter: invert(1) hue-rotate(180deg);
 }
 
 .w-md-editor {
-  --md-editor-border-color: var(--border) !important;
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+    --md-editor-border-color: var(--border) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 
 .w-md-editor-toolbar {
-  border-bottom: 1px solid var(--border) !important;
-  background: transparent !important;
-  padding: 6px 8px !important;
-  min-height: auto !important;
-  height: auto !important;
+    border-bottom: 1px solid var(--border) !important;
+    background: transparent !important;
+    padding: 6px 8px !important;
+    min-height: auto !important;
+    height: auto !important;
 }
 
 .w-md-editor-toolbar ul > li > button {
-  height: 28px !important;
-  width: 28px !important;
-  margin: 0 1px !important;
+    height: 28px !important;
+    width: 28px !important;
+    margin: 0 1px !important;
 }
 
 .w-md-editor-content {
-  height: calc(100% - 40px) !important;
+    height: calc(100% - 40px) !important;
 }
 
 .w-md-editor-text-pre > code,
 .w-md-editor-text-input,
 .w-md-editor-text {
-  font-size: 14px !important;
-  line-height: 1.6 !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
 }
 
 .w-md-editor-preview {
-  padding: 16px !important;
+    padding: 16px !important;
 }
 
 .wmde-markdown {
-  font-size: 14px !important;
-  line-height: 1.6 !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
 }
 
 [data-color-mode="dark"] .w-md-editor {
-  --color-canvas-default: var(--background) !important;
-  --color-fg-default: var(--foreground) !important;
-  --color-border-default: var(--border) !important;
-  background-color: var(--background) !important;
-  color: var(--foreground) !important;
+    --color-canvas-default: var(--background) !important;
+    --color-fg-default: var(--foreground) !important;
+    --color-border-default: var(--border) !important;
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
 }
 
 [data-color-mode="light"] .w-md-editor {
-  --color-canvas-default: var(--background) !important;
-  --color-fg-default: var(--foreground) !important;
-  --color-border-default: var(--border) !important;
-  background-color: var(--background) !important;
-  color: var(--foreground) !important;
+    --color-canvas-default: var(--background) !important;
+    --color-fg-default: var(--foreground) !important;
+    --color-border-default: var(--border) !important;
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
 }
 
 [data-color-mode="dark"] .wmde-markdown,
 [data-color-mode="light"] .wmde-markdown {
-  background-color: transparent !important;
-  color: var(--foreground) !important;
+    background-color: transparent !important;
+    color: var(--foreground) !important;
 }
 
 [data-color-mode="dark"] .wmde-markdown code,
 [data-color-mode="light"] .wmde-markdown code {
-  background-color: var(--muted) !important;
-  color: var(--foreground) !important;
+    background-color: var(--muted) !important;
+    color: var(--foreground) !important;
 }
 
 [data-color-mode="dark"] .wmde-markdown pre,
 [data-color-mode="light"] .wmde-markdown pre {
-  background-color: var(--muted) !important;
+    background-color: var(--muted) !important;
 }

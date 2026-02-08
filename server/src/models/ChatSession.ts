@@ -9,8 +9,7 @@ export interface IChatMessage {
 export interface IChatSession extends Document {
   paperId: mongoose.Types.ObjectId;
   userId: string;
-  geminiCacheName: string | null;
-  cacheExpiresAt: Date | null;
+  isIndexed: boolean;
   messages: IChatMessage[];
   createdAt: Date;
   updatedAt: Date;
@@ -29,8 +28,7 @@ const ChatSessionSchema = new Schema<IChatSession>(
   {
     paperId: { type: Schema.Types.ObjectId, ref: 'Paper', required: true, index: true },
     userId: { type: String, required: true, index: true },
-    geminiCacheName: { type: String, default: null },
-    cacheExpiresAt: { type: Date, default: null },
+    isIndexed: { type: Boolean, default: false },
     messages: { type: [ChatMessageSchema], default: [] },
   },
   { timestamps: true }

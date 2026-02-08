@@ -37,6 +37,9 @@ export interface Paper {
   fileUrl: string;
   storagePath: string;
   summary?: string;
+  tags: string[];
+  lastReadPage?: number;
+  totalPages?: number;
   uploadedAt: string;
 }
 
@@ -57,15 +60,34 @@ export interface PapersQueryParams {
   sort?: 'newest' | 'oldest' | 'title-asc' | 'title-desc';
   page?: number;
   limit?: number;
+  tag?: string;
+}
+
+export interface Recommendation {
+  paperId: string;
+  title: string;
+  authors?: { name: string }[];
+  year?: number;
+  abstract?: string;
+  url?: string;
+  citationCount?: number;
+  externalIds?: Record<string, string>;
 }
 
 export const papersApi = {
   getAll: (params?: PapersQueryParams) => 
     api.get<PapersResponse>('/papers', { params }).then((res) => res.data),
   getOne: (id: string) => api.get<Paper>(`/papers/${id}`).then((res) => res.data),
-  upload: (data: { title: string; fileName: string; fileBase64: string }) =>
+  upload: (data: { title: string; fileName: string; fileBase64: string; tags?: string[] }) =>
     api.post<Paper>('/papers/upload', data).then((res) => res.data),
   delete: (id: string) => api.delete(`/papers/${id}`).then((res) => res.data),
+  getTags: () => api.get<{ tags: string[] }>('/papers/tags').then((res) => res.data.tags),
+  updateTags: (id: string, tags: string[]) =>
+    api.patch<Paper>(`/papers/${id}/tags`, { tags }).then((res) => res.data),
+  updateProgress: (id: string, lastReadPage: number, totalPages: number) =>
+    api.patch<Paper>(`/papers/${id}/progress`, { lastReadPage, totalPages }).then((res) => res.data),
+  getRecommendations: (id: string) =>
+    api.get<{ recommendations: Recommendation[] }>(`/papers/${id}/recommendations`).then((res) => res.data.recommendations),
 };
 
 export default api;

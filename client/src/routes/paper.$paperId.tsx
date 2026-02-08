@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import MDEditor from '@uiw/react-md-editor';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { papersApi, Paper } from '@/lib/api';
+import { papersApi, Paper, Recommendation } from '@/lib/api';
 import { useNotes, useAISummary, useAIChat } from '@/lib/websocket';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,14 +29,27 @@ import {
   Sun,
   GripVertical,
   Trash2,
+  Tag,
+  Plus,
+  X,
+  BookOpen,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-type PanelTab = 'summary' | 'chat' | 'notes';
+type PanelTab = 'summary' | 'chat' | 'notes' | 'recommendations';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -66,7 +79,7 @@ export default function PaperViewPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [streamingResponse, setStreamingResponse] = useState<string>('');
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const chatHistoryFetchedRef = useRef(false);
 
   const [noteContent, setNoteContent] = useState('');
@@ -80,6 +93,19 @@ export default function PaperViewPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const MIN_PANEL_WIDTH = 280;
   const MAX_PANEL_WIDTH = 700;
+
+  const [editTagsOpen, setEditTagsOpen] = useState(false);
+  const [editTagsList, setEditTagsList] = useState<string[]>([]);
+  const [editTagInput, setEditTagInput] = useState('');
+  const [savingTags, setSavingTags] = useState(false);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const progressSaveTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const recommendationsFetchedRef = useRef(false);
 
   const { fetchNotes, updateNotes, isSaving: savingNotes, isConnected: notesConnected } = useNotes({
     paperId,
@@ -160,10 +186,102 @@ export default function PaperViewPage() {
   }, [chatConnected, fetchChatHistory]);
 
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, streamingResponse]);
+
+  useEffect(() => {
+    if (tab === 'chat') {
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'instant' }), 0);
+    }
+  }, [tab]);
+
+  const handlePageInView = useCallback((pageNum: number) => {
+    setCurrentPage(pageNum);
+    if (progressSaveTimeout.current) clearTimeout(progressSaveTimeout.current);
+    progressSaveTimeout.current = setTimeout(() => {
+      if (numPages > 0) {
+        papersApi.updateProgress(paperId, pageNum, numPages).catch(() => {});
+      }
+    }, 2000);
+  }, [paperId, numPages]);
+
+  useEffect(() => {
+    if (!pdfScrollRef.current || numPages === 0) return;
+
+    const scrollEl = pdfScrollRef.current;
+    const handleScroll = () => {
+      const scrollMid = scrollEl.scrollTop + scrollEl.clientHeight / 2;
+      let closestPage = 1;
+      let closestDist = Infinity;
+
+      pageRefs.current.forEach((el, pageNum) => {
+        const mid = el.offsetTop + el.offsetHeight / 2;
+        const dist = Math.abs(mid - scrollMid);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestPage = pageNum;
+        }
+      });
+
+      handlePageInView(closestPage);
+    };
+
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  }, [numPages, handlePageInView]);
+
+  useEffect(() => {
+    if (paper?.lastReadPage && paper.lastReadPage > 1 && numPages > 0) {
+      setTimeout(() => {
+        const pageEl = pageRefs.current.get(paper.lastReadPage!);
+        if (pageEl) {
+          pageEl.scrollIntoView({ behavior: 'instant' });
+        }
+      }, 500);
+    }
+  }, [paper?.lastReadPage, numPages]);
+
+  useEffect(() => {
+    if (tab === 'recommendations' && !recommendationsFetchedRef.current) {
+      recommendationsFetchedRef.current = true;
+      setLoadingRecommendations(true);
+      papersApi.getRecommendations(paperId)
+        .then(setRecommendations)
+        .catch(() => toast.error('Failed to load recommendations'))
+        .finally(() => setLoadingRecommendations(false));
+    }
+  }, [tab, paperId]);
+
+  const handleOpenEditTags = () => {
+    setEditTagsList(paper?.tags ? [...paper.tags] : []);
+    setEditTagInput('');
+    setEditTagsOpen(true);
+  };
+
+  const handleEditTagsAdd = () => {
+    const t = editTagInput.trim().toLowerCase();
+    if (!t || editTagsList.includes(t)) return;
+    setEditTagsList((prev) => [...prev, t]);
+    setEditTagInput('');
+  };
+
+  const handleEditTagsRemove = (tag: string) => {
+    setEditTagsList((prev) => prev.filter((t) => t !== tag));
+  };
+
+  const handleEditTagsSave = async () => {
+    setSavingTags(true);
+    try {
+      const updated = await papersApi.updateTags(paperId!, editTagsList);
+      setPaper(updated);
+      setEditTagsOpen(false);
+      toast.success('Tags updated');
+    } catch {
+      toast.error('Failed to update tags');
+    } finally {
+      setSavingTags(false);
+    }
+  };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !containerRef.current) return;
@@ -253,8 +371,11 @@ export default function PaperViewPage() {
     setNoteContent(value || '');
   };
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages);
+  function onDocumentLoadSuccess({ numPages: pages }: { numPages: number }) {
+    setNumPages(pages);
+    if (paper && (!paper.totalPages || paper.totalPages !== pages)) {
+      papersApi.updateProgress(paperId!, paper.lastReadPage ?? 1, pages).catch(() => {});
+    }
   }
 
   const displaySummary = streamingSummary || summary;
@@ -282,9 +403,32 @@ export default function PaperViewPage() {
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="text-sm font-medium truncate max-w-md">{paper.title}</h1>
-            <p className="text-xs text-muted-foreground">
-              {new Date(paper.uploadedAt).toLocaleDateString()}
-            </p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p className="text-xs text-muted-foreground">
+                {new Date(paper.uploadedAt).toLocaleDateString()}
+              </p>
+              {paper.tags && paper.tags.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {paper.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded bg-muted text-[10px] font-medium text-muted-foreground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-1.5 gap-1 text-[10px] text-muted-foreground"
+                onClick={handleOpenEditTags}
+              >
+                <Tag className="w-3 h-3" />
+                Edit tags
+              </Button>
+            </div>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme}>
             {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -292,11 +436,61 @@ export default function PaperViewPage() {
         </div>
       </header>
 
+      <Dialog open={editTagsOpen} onOpenChange={setEditTagsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit tags</DialogTitle>
+            <DialogDescription>
+              Add or remove tags for this paper
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add tag..."
+                value={editTagInput}
+                onChange={(e) => setEditTagInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleEditTagsAdd())}
+              />
+              <Button type="button" variant="secondary" size="sm" onClick={handleEditTagsAdd} disabled={!editTagInput.trim()}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 min-h-8">
+              {editTagsList.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-sm font-medium"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => handleEditTagsRemove(tag)}
+                    className="hover:text-destructive rounded p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTagsOpen(false)} disabled={savingTags}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditTagsSave} disabled={savingTags} className="gap-2">
+              {savingTags && <Loader2 className="w-4 h-4 animate-spin" />}
+              {savingTags ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div ref={containerRef} className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden relative">
           <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b">
             <span className="text-xs text-muted-foreground">
-              {numPages > 0 ? `${numPages} pages` : 'Loading...'}
+              {numPages > 0 ? `Page ${currentPage} of ${numPages}` : 'Loading...'}
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -340,7 +534,14 @@ export default function PaperViewPage() {
                 }
               >
                 {Array.from(new Array(numPages), (_, index) => (
-                  <div key={`page_${index + 1}`} className="shadow-sm mb-4">
+                  <div
+                    key={`page_${index + 1}`}
+                    className="shadow-sm mb-4"
+                    ref={(el) => {
+                      if (el) pageRefs.current.set(index + 1, el);
+                      else pageRefs.current.delete(index + 1);
+                    }}
+                  >
                     <Page
                       pageNumber={index + 1}
                       scale={scale}
@@ -374,26 +575,30 @@ export default function PaperViewPage() {
             onValueChange={(value) => updateSearchParams({ tab: value as PanelTab })}
             className="flex-1 flex flex-col overflow-hidden"
           >
-            <TabsList className="shrink-0 grid w-full grid-cols-3 rounded-none border-b h-10">
-              <TabsTrigger value="summary" className="gap-1.5 text-xs">
+            <TabsList className="shrink-0 grid w-full grid-cols-4 rounded-none border-b h-10">
+              <TabsTrigger value="summary" className="gap-1 text-[11px]">
                 <Sparkles className="w-3.5 h-3.5" />
                 Summary
               </TabsTrigger>
-              <TabsTrigger value="chat" className="gap-1.5 text-xs">
+              <TabsTrigger value="chat" className="gap-1 text-[11px]">
                 <MessageSquare className="w-3.5 h-3.5" />
                 Chat
               </TabsTrigger>
-              <TabsTrigger value="notes" className="gap-1.5 text-xs">
+              <TabsTrigger value="notes" className="gap-1 text-[11px]">
                 <StickyNote className="w-3.5 h-3.5" />
                 Notes
+              </TabsTrigger>
+              <TabsTrigger value="recommendations" className="gap-1 text-[11px]">
+                <BookOpen className="w-3.5 h-3.5" />
+                Related
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="summary" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
               <ScrollArea className="flex-1">
-                <div className="p-4">
+                <div className="p-5">
                   {displaySummary ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground pb-2 border-b">
                         <Sparkles className="w-3.5 h-3.5" />
                         <span>AI Summary</span>
@@ -401,7 +606,7 @@ export default function PaperViewPage() {
                           <Loader2 className="w-3 h-3 animate-spin ml-auto" />
                         )}
                       </div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>h1]:text-base [&>h2]:text-sm [&>h3]:text-sm [&>h1]:font-semibold [&>h2]:font-medium [&>h3]:font-medium [&>p]:text-[13px] [&>ul]:text-[13px] [&>ol]:text-[13px] [&>li]:text-[13px]">
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>h1]:text-base [&>h2]:text-sm [&>h3]:text-sm [&>h1]:font-semibold [&>h2]:font-medium [&>h3]:font-medium [&>p]:text-sm [&>p]:leading-relaxed [&>ul]:text-sm [&>ol]:text-sm [&>li]:text-sm [&>ul]:leading-relaxed [&>ol]:leading-relaxed [&>p]:mb-3 [&>ul]:mb-3 [&>ol]:mb-3 [&>h1]:mb-2 [&>h2]:mb-2 [&>h2]:mt-5 [&>h3]:mb-2 [&>h3]:mt-4 [&>li]:mb-1">
                         <ReactMarkdown>{displaySummary}</ReactMarkdown>
                         {generatingSummary && (
                           <span className="inline-block w-1.5 h-3.5 bg-muted-foreground/50 animate-pulse ml-0.5 rounded-sm" />
@@ -469,7 +674,7 @@ export default function PaperViewPage() {
                   </Button>
                 </div>
               )}
-              <ScrollArea className="flex-1" ref={chatScrollRef}>
+              <ScrollArea className="flex-1">
                 <div className="p-4 space-y-3">
                   {chatMessages.length === 0 && !streamingResponse ? (
                     <div className="text-center py-8">
@@ -543,6 +748,7 @@ export default function PaperViewPage() {
                       )}
                     </>
                   )}
+                  <div ref={chatEndRef} />
                 </div>
               </ScrollArea>
               <Separator />
@@ -598,6 +804,66 @@ export default function PaperViewPage() {
                   Save
                 </Button>
               </div>
+            </TabsContent>
+
+            <TabsContent value="recommendations" className="flex-1 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
+              <ScrollArea className="flex-1">
+                <div className="p-4">
+                  {loadingRecommendations ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : recommendations.length === 0 ? (
+                    <div className="text-center py-12">
+                      <BookOpen className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                      <h3 className="font-medium text-sm mb-1">No recommendations</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Related papers will appear here based on this paper&apos;s title
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground pb-2 border-b">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Related Papers (via Semantic Scholar)</span>
+                      </div>
+                      {recommendations.map((rec) => (
+                        <a
+                          key={rec.paperId}
+                          href={rec.url || `https://www.semanticscholar.org/paper/${rec.paperId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                              {rec.title}
+                            </h4>
+                            <ExternalLink className="w-3.5 h-3.5 shrink-0 text-muted-foreground mt-0.5" />
+                          </div>
+                          {rec.authors && rec.authors.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              {rec.authors.slice(0, 3).map((a) => a.name).join(', ')}
+                              {rec.authors.length > 3 && ` +${rec.authors.length - 3} more`}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                            {rec.year && <span>{rec.year}</span>}
+                            {rec.citationCount !== undefined && (
+                              <span>{rec.citationCount} citations</span>
+                            )}
+                          </div>
+                          {rec.abstract && (
+                            <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+                              {rec.abstract}
+                            </p>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
         </div>

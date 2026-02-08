@@ -7,6 +7,9 @@ export interface IPaper extends Document {
   fileUrl: string;
   storagePath: string;
   summary?: string;
+  tags: string[];
+  lastReadPage?: number;
+  totalPages?: number;
   uploadedAt: Date;
 }
 
@@ -17,6 +20,9 @@ const PaperSchema = new Schema<IPaper>({
   fileUrl: { type: String, required: true },
   storagePath: { type: String, required: true },
   summary: { type: String },
+  tags: { type: [String], default: [] },
+  lastReadPage: { type: Number },
+  totalPages: { type: Number },
   uploadedAt: { type: Date, default: Date.now },
 });
 

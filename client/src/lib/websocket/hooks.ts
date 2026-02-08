@@ -10,6 +10,8 @@ import type {
   AIChatCompleteResponse,
   AIChatHistoryResponse,
   AIChatClearedResponse,
+  AIDefineChunkResponse,
+  AIDefineCompleteResponse,
   AIErrorResponse,
 } from './types';
 
@@ -305,4 +307,71 @@ export const useAIChat = ({ paperId, onChunk, onComplete, onHistoryLoaded, onCle
   }, [socket, isConnected, paperId]);
 
   return { sendMessage, fetchHistory, clearHistory, isSending, isLoadingHistory, isConnected };
+};
+
+interface UseAIDefineOptions {
+  paperId: string;
+  onChunk?: (chunk: string) => void;
+  onComplete?: (definition: string, term: string) => void;
+  onError?: (error: string) => void;
+}
+
+export const useAIDefine = ({ paperId, onChunk, onComplete, onError }: UseAIDefineOptions) => {
+  const { socket, isConnected } = useSocket();
+  const [isDefining, setIsDefining] = useState(false);
+  const onChunkRef = useRef(onChunk);
+  const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onChunkRef.current = onChunk;
+    onCompleteRef.current = onComplete;
+    onErrorRef.current = onError;
+  }, [onChunk, onComplete, onError]);
+
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleChunk = (response: AIDefineChunkResponse) => {
+      if (response.paperId === paperId) {
+        onChunkRef.current?.(response.chunk);
+      }
+    };
+
+    const handleComplete = (response: AIDefineCompleteResponse) => {
+      if (response.paperId === paperId) {
+        setIsDefining(false);
+        onCompleteRef.current?.(response.definition, response.term);
+      }
+    };
+
+    const handleError = (response: AIErrorResponse) => {
+      if (response.paperId === paperId) {
+        setIsDefining(false);
+        onErrorRef.current?.(response.error);
+      }
+    };
+
+    socket.on('ai:define:chunk', handleChunk);
+    socket.on('ai:define:complete', handleComplete);
+    socket.on('ai:define:error', handleError);
+
+    return () => {
+      socket.off('ai:define:chunk', handleChunk);
+      socket.off('ai:define:complete', handleComplete);
+      socket.off('ai:define:error', handleError);
+    };
+  }, [socket, isConnected, paperId]);
+
+  const defineTerm = useCallback(
+    (term: string, context?: string) => {
+      if (socket && isConnected) {
+        setIsDefining(true);
+        socket.emit('ai:define', { paperId, term, context });
+      }
+    },
+    [socket, isConnected, paperId]
+  );
+
+  return { defineTerm, isDefining, isConnected };
 };

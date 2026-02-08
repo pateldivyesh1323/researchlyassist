@@ -1,10 +1,11 @@
-import { generateSummaryStream, chatWithPaperStream, getChatHistory, clearChatHistory } from '../../controllers/ai.js';
+import { generateSummaryStream, chatWithPaperStream, getChatHistory, clearChatHistory, defineTermStream } from '../../controllers/ai.js';
 import {
   AuthenticatedSocket,
   AISummaryRequestPayload,
   AIChatRequestPayload,
   AIChatHistoryRequestPayload,
   AIChatClearRequestPayload,
+  AIDefineRequestPayload,
 } from '../types.js';
 
 export const registerAIHandlers = (socket: AuthenticatedSocket): void => {
@@ -89,5 +90,32 @@ export const registerAIHandlers = (socket: AuthenticatedSocket): void => {
     } else {
       socket.emit('ai:chat:cleared', { paperId, success: true });
     }
+  });
+
+  socket.on('ai:define', async (payload: AIDefineRequestPayload) => {
+    const { paperId, term, context } = payload;
+
+    await defineTermStream(paperId, userId, term, context, {
+      onChunk: (chunk) => {
+        socket.emit('ai:define:chunk', {
+          paperId,
+          term,
+          chunk,
+        });
+      },
+      onComplete: (definition) => {
+        socket.emit('ai:define:complete', {
+          paperId,
+          term,
+          definition,
+        });
+      },
+      onError: (error) => {
+        socket.emit('ai:define:error', {
+          paperId,
+          error,
+        });
+      },
+    });
   });
 };

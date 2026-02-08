@@ -8,13 +8,19 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@langchain/core": "^1.1.19",
+    "@langchain/groq": "^1.0.4",
+    "@langchain/pinecone": "^1.0.1",
+    "@langchain/textsplitters": "^1.0.1",
+    "@pinecone-database/pinecone": "^5.1.2",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "firebase-admin": "^13.6.0",
+    "groq-sdk": "^0.37.0",
     "jsonwebtoken": "^9.0.3",
+    "langchain": "^1.2.18",
     "mongoose": "^9.1.4",
     "pdf-parse": "^2.4.5",
     "socket.io": "^4.8.3"

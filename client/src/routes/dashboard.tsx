@@ -43,6 +43,9 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  Tag,
+  X,
+  Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -63,11 +66,22 @@ export default function DashboardPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadTags, setUploadTags] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevDebouncedSearch = useRef(debouncedSearch);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [selectedTag, setSelectedTag] = useState<string>('');
 
-  const fetchPapers = useCallback(async (search: string, sort: SortOption, page: number) => {
+  const fetchTags = useCallback(async () => {
+    try {
+      const tags = await papersApi.getTags();
+      setAllTags(tags);
+    } catch {
+    }
+  }, []);
+
+  const fetchPapers = useCallback(async (search: string, sort: SortOption, page: number, tag: string) => {
     setIsLoading(true);
     try {
       const data = await papersApi.getAll({
@@ -75,6 +89,7 @@ export default function DashboardPage() {
         sort,
         page,
         limit: PAPERS_PER_PAGE,
+        tag: tag || undefined,
       });
       setPapers(data.papers);
       setPagination(data.pagination);
@@ -94,9 +109,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      fetchPapers(debouncedSearch, sortBy, currentPage);
+      fetchPapers(debouncedSearch, sortBy, currentPage, selectedTag);
+      fetchTags();
     }
-  }, [user, debouncedSearch, sortBy, currentPage, fetchPapers]);
+  }, [user, debouncedSearch, sortBy, currentPage, selectedTag, fetchPapers, fetchTags]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -127,16 +143,23 @@ export default function DashboardPage() {
         reader.readAsDataURL(selectedFile);
       });
 
+      const tagsArray = uploadTags
+        .split(',')
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean);
+
       await papersApi.upload({
         title: uploadTitle,
         fileName: selectedFile.name,
         fileBase64: base64,
+        tags: tagsArray.length > 0 ? tagsArray : undefined,
       });
       toast.success('Paper uploaded successfully!');
       setUploadOpen(false);
       setUploadTitle('');
+      setUploadTags('');
       setSelectedFile(null);
-      fetchPapers(debouncedSearch, sortBy, currentPage);
+      fetchPapers(debouncedSearch, sortBy, currentPage, selectedTag);
     } catch (error) {
       toast.error('Failed to upload paper');
     } finally {
@@ -152,7 +175,8 @@ export default function DashboardPage() {
     try {
       await papersApi.delete(id);
       toast.success('Paper deleted');
-      fetchPapers(debouncedSearch, sortBy, currentPage);
+      fetchPapers(debouncedSearch, sortBy, currentPage, selectedTag);
+      fetchTags();
     } catch (error) {
       toast.error('Failed to delete paper');
     }
@@ -203,6 +227,27 @@ export default function DashboardPage() {
               />
             </div>
 
+            {allTags.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant={selectedTag ? 'default' : 'outline'} size="sm" className="gap-2 hidden sm:flex">
+                    <Filter className="w-4 h-4" />
+                    <span className="hidden lg:inline">{selectedTag || 'Filter'}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Filter by tag</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={selectedTag} onValueChange={(v) => { setSelectedTag(v); setCurrentPage(1); }}>
+                    <DropdownMenuRadioItem value="">All papers</DropdownMenuRadioItem>
+                    {allTags.map((tag) => (
+                      <DropdownMenuRadioItem key={tag} value={tag}>{tag}</DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 hidden sm:flex">
@@ -226,7 +271,17 @@ export default function DashboardPage() {
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </Button>
 
-            <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+            <Dialog
+              open={uploadOpen}
+              onOpenChange={(open) => {
+                setUploadOpen(open);
+                if (!open) {
+                  setUploadTitle('');
+                  setUploadTags('');
+                  setSelectedFile(null);
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2">
                   <Plus className="w-4 h-4" />
@@ -248,6 +303,15 @@ export default function DashboardPage() {
                       placeholder="Paper title"
                       value={uploadTitle}
                       onChange={(e) => setUploadTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="upload-tags">Tags (optional)</Label>
+                    <Input
+                      id="upload-tags"
+                      placeholder="e.g. machine learning, to read"
+                      value={uploadTags}
+                      onChange={(e) => setUploadTags(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -411,10 +475,37 @@ export default function DashboardPage() {
                       <FileText className="w-3 h-3" />
                       <span className="truncate">{paper.fileName}</span>
                     </div>
+                    {paper.tags && paper.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {paper.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted text-[10px] font-medium text-muted-foreground"
+                          >
+                            <Tag className="w-2.5 h-2.5" />
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {paper.summary && (
                       <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
                         {paper.summary.slice(0, 120)}...
                       </p>
+                    )}
+                    {paper.lastReadPage && paper.totalPages && paper.totalPages > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>Progress</span>
+                          <span>{Math.round((paper.lastReadPage / paper.totalPages) * 100)}%</span>
+                        </div>
+                        <div className="h-1 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${(paper.lastReadPage / paper.totalPages) * 100}%` }}
+                          />
+                        </div>
+                      </div>
                     )}
                   </CardContent>
                 </Card>

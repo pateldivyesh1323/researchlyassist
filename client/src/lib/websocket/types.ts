@@ -73,6 +73,24 @@ export interface AIErrorResponse {
   error: string;
 }
 
+export interface AIDefineRequestPayload {
+  paperId: string;
+  term: string;
+  context?: string;
+}
+
+export interface AIDefineChunkResponse {
+  paperId: string;
+  term: string;
+  chunk: string;
+}
+
+export interface AIDefineCompleteResponse {
+  paperId: string;
+  term: string;
+  definition: string;
+}
+
 export interface ClientToServerEvents {
   'notes:update': (payload: NotesUpdatePayload) => void;
   'notes:get': (payload: { paperId: string }) => void;
@@ -80,6 +98,7 @@ export interface ClientToServerEvents {
   'ai:chat': (payload: AIChatRequestPayload) => void;
   'ai:chat:history': (payload: AIChatHistoryRequestPayload) => void;
   'ai:chat:clear': (payload: AIChatClearRequestPayload) => void;
+  'ai:define': (payload: AIDefineRequestPayload) => void;
 }
 
 export interface ServerToClientEvents {
@@ -94,4 +113,7 @@ export interface ServerToClientEvents {
   'ai:chat:error': (payload: AIErrorResponse) => void;
   'ai:chat:history:response': (payload: AIChatHistoryResponse) => void;
   'ai:chat:cleared': (payload: AIChatClearedResponse) => void;
+  'ai:define:chunk': (payload: AIDefineChunkResponse) => void;
+  'ai:define:complete': (payload: AIDefineCompleteResponse) => void;
+  'ai:define:error': (payload: AIErrorResponse) => void;
 }
